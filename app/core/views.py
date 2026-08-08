@@ -7,6 +7,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from .serializers import UtilizadorAlunoSerializer, PersonalTrainerSerializer
+from .models import UtilizadorAluno, PersonalTrainer
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import LoginSerializer
+from rest_framework.permissions import IsAdminUser
+
 
 from .models import Utilizador
 from .serializers import RegistoSerializer
@@ -51,9 +58,7 @@ class ConfirmarEmailView(APIView):
             return Response({"mensagem": "Email confirmado com sucesso."}, status=status.HTTP_200_OK)
 
         return Response({"mensagem": "Token invalido ou expirado."}, status=status.HTTP_400_BAD_REQUEST)
-    from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import LoginSerializer
-
+   
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -86,3 +91,39 @@ class LogoutView(APIView):
             return Response({"mensagem": "Token invalido."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"mensagem": "Logout efetuado com sucesso."}, status=status.HTTP_200_OK)
+   
+
+class MeuPerfilAlunoView(generics.RetrieveUpdateAPIView):
+    serializer_class = UtilizadorAlunoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.perfil_aluno
+
+
+class MeuPerfilPersonalTrainerView(generics.RetrieveUpdateAPIView):
+    serializer_class = PersonalTrainerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.perfil_personal_trainer
+    
+
+
+class VerificarPersonalTrainerView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            pt = PersonalTrainer.objects.get(pk=pk)
+        except PersonalTrainer.DoesNotExist:
+            return Response({"mensagem": "Personal Trainer nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        pt.estado_verificacao = PersonalTrainer.EstadoVerificacao.VERIFICADO
+        pt.save()
+
+        return Response({
+            "mensagem": "Personal Trainer verificado com sucesso.",
+            "id": pt.id,
+            "estado_verificacao": pt.estado_verificacao,
+        }, status=status.HTTP_200_OK)
