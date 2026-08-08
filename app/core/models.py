@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from .fields import EncryptedCharField
 
 
 class Utilizador(AbstractUser):
@@ -8,7 +9,7 @@ class Utilizador(AbstractUser):
         PERSONAL_TRAINER = "personal_trainer", "Personal Trainer"
 
     tipo = models.CharField(max_length=20, choices=TipoUtilizador.choices)
-    telefone = models.CharField(max_length=20, blank=True)
+    telefone = EncryptedCharField(blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
