@@ -10,6 +10,7 @@ class Utilizador(AbstractUser):
     class TipoUtilizador(models.TextChoices):
         ALUNO = "aluno", "Aluno"
         PERSONAL_TRAINER = "personal_trainer", "Personal Trainer"
+        NUTRICIONISTA = "nutricionista", "Nutricionista"
 
     tipo = models.CharField(max_length=20, choices=TipoUtilizador.choices)
     telefone = EncryptedCharField(blank=True)
@@ -330,3 +331,21 @@ class ReservaGinasio(models.Model):
 
     def __str__(self):
         return f"Reserva {self.id} - {self.ginasio_id} ({self.estado})"
+
+
+class Nutricionista(models.Model):
+    """Nutricionista parceiro: cria planos nutricionais para alunos (UC-11). Verificado pelo admin."""
+
+    class EstadoVerificacao(models.TextChoices):
+        PENDENTE = "pendente", "Pendente de Verificação"
+        VERIFICADO = "verificado", "Verificado"
+
+    utilizador = models.OneToOneField(Utilizador, on_delete=models.CASCADE, related_name="perfil_nutricionista")
+    estado_verificacao = models.CharField(
+        max_length=20, choices=EstadoVerificacao.choices, default=EstadoVerificacao.PENDENTE)
+    cedula_profissional = models.CharField(max_length=100, blank=True)
+    especialidade = models.CharField(max_length=255, blank=True)
+    biografia = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Nutricionista: {self.utilizador.username}"

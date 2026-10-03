@@ -24,3 +24,12 @@ class IsAluno(BasePermission):
             and user.tipo == Utilizador.TipoUtilizador.ALUNO
             and hasattr(user, "perfil_aluno")
         )
+
+
+class IsNutricionistaVerificado(BasePermission):
+    message = "O seu perfil de Nutricionista ainda nao foi verificado."
+
+    def has_permission(self, request, view):
+        from .models import Nutricionista
+        perfil = getattr(request.user, "perfil_nutricionista", None) if request.user.is_authenticated else None
+        return perfil is not None and perfil.estado_verificacao == Nutricionista.EstadoVerificacao.VERIFICADO

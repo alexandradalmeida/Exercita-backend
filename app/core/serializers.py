@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Ginasio, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -29,6 +29,8 @@ class RegistoSerializer(serializers.ModelSerializer):
             UtilizadorAluno.objects.create(utilizador=utilizador)
         elif utilizador.tipo == Utilizador.TipoUtilizador.PERSONAL_TRAINER:
             PersonalTrainer.objects.create(utilizador=utilizador)
+        elif utilizador.tipo == Utilizador.TipoUtilizador.NUTRICIONISTA:
+            Nutricionista.objects.create(utilizador=utilizador)
 
         return utilizador
 
@@ -317,3 +319,22 @@ class ReservaGinasioSerializer(serializers.ModelSerializer):
         fields = ["id", "ginasio", "ginasio_nome", "personal_trainer", "tipo", "data_hora", "estado", "notas"]
         read_only_fields = ["id", "ginasio", "ginasio_nome", "estado"]
         extra_kwargs = {"personal_trainer": {"required": False, "allow_null": True}}
+
+
+class NutricionistaSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="utilizador.username", read_only=True)
+    email = serializers.EmailField(source="utilizador.email", read_only=True)
+    telefone = serializers.CharField(source="utilizador.telefone")
+
+    class Meta:
+        model = Nutricionista
+        fields = ["id", "username", "email", "telefone", "estado_verificacao",
+                  "cedula_profissional", "especialidade", "biografia"]
+        read_only_fields = ["estado_verificacao"]  # so muda pela verificacao do admin
+
+    def update(self, instance, validated_data):
+        utilizador_data = validated_data.pop("utilizador", {})
+        if "telefone" in utilizador_data:
+            instance.utilizador.telefone = utilizador_data["telefone"]
+            instance.utilizador.save()
+        return super().update(instance, validated_data)
