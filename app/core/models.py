@@ -128,6 +128,7 @@ class Sessao(models.Model):
     data_cancelamento = models.DateTimeField(null=True, blank=True)
     data_realizacao = models.DateTimeField(null=True, blank=True)
     reclamacao = models.TextField(blank=True)  # BR-03: uma reclamacao bloqueia a libertacao automatica
+    lembrete_enviado = models.BooleanField(default=False)
     notas = models.TextField(blank=True)
 
     def pode_transitar(self, novo_estado):

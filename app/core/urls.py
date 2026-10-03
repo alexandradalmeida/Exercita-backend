@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_sessoes import (
     IniciarPagamentoView, LibertarPagamentoView, PagamentoWebhookView, SessaoDetalheView, SessaoListCreateView,
 )
@@ -37,6 +38,9 @@ urlpatterns = [
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
     path("sessions/<int:pk>/", SessaoDetalheView.as_view(), name="sessao_detalhe"),
     path("payments/", IniciarPagamentoView.as_view(), name="pagamento_iniciar"),
+    path("notifications/", NotificacaoListView.as_view(), name="notificacoes"),
+    path("notifications/read-all/", NotificacoesMarcarLidasView.as_view(), name="notificacoes_ler_todas"),
+    path("notifications/<int:pk>/", NotificacaoDetalheView.as_view(), name="notificacao_detalhe"),
     path("payments/<int:pk>/webhook/", PagamentoWebhookView.as_view(), name="pagamento_webhook"),
     path("payments/<int:pk>/release/", LibertarPagamentoView.as_view(), name="pagamento_release"),
     path("", include(router.urls)),

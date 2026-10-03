@@ -6,6 +6,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from ..models import Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade
+from . import notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import calcular_comissao
 
@@ -60,6 +61,7 @@ def contratar_personal_trainer(aluno, pt, slot, data_hora, modalidade, quantidad
         sessao=sessao, valor=valor, comissao_plataforma=comissao, valor_liquido_pt=liquido,
     )
     SlotDisponibilidade.objects.filter(pk=slot.pk).update(vagas_ocupadas=F("vagas_ocupadas") + 1)
+    notificacoes.sessao_contratada(sessao)
     return sessao, pagamento
 
 
@@ -109,6 +111,7 @@ def cancelar_sessao(sessao, user):
             pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)
             reembolsado = True
         # aprovado sem direito a reembolso: fica retido ate decisao do admin (regra a confirmar)
+    notificacoes.sessao_cancelada(sessao, user, reembolsado)
     return reembolsado
 
 
@@ -136,7 +139,9 @@ def reagendar_sessao(sessao, user, slot, data_hora):
         _liberar_vaga(antigo)
     sessao.slot = slot
     sessao.data_hora = data_hora
-    sessao.save(update_fields=["slot", "data_hora"])
+    sessao.lembrete_enviado = False
+    sessao.save(update_fields=["slot", "data_hora", "lembrete_enviado"])
+    notificacoes.sessao_reagendada(sessao)
 
 
 ACOES_PT = {
@@ -158,10 +163,13 @@ def avancar_sessao(sessao, user, acao):
             estado=Pagamento.EstadoPagamento.APROVADO).exists():
         raise ErroNegocio("A sessao so pode ser confirmada depois do pagamento aprovado.", 409)
     sessao.transitar(destino)
+    if destino == Sessao.EstadoSessao.CONFIRMADA:
+        notificacoes.sessao_confirmada(sessao)
     if destino == Sessao.EstadoSessao.REALIZADA:
         sessao.data_realizacao = timezone.now()
         sessao.save(update_fields=["data_realizacao"])
         _liberar_vaga(sessao.slot)
+        notificacoes.sessao_realizada(sessao)
 
 
 @transaction.atomic

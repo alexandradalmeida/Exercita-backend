@@ -4,6 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Pagamento, Sessao
+from . import notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import PagamentoErro
 
@@ -42,8 +43,10 @@ def processar_callback(pagamento_id, referencia, resultado):
 
     if resultado == E.APROVADO:
         pagamento.transitar(E.APROVADO, data_aprovacao=timezone.now())
+        notificacoes.pagamento_aprovado(pagamento)
     else:
         pagamento.transitar(E.RECUSADO)
+        notificacoes.pagamento_recusado(pagamento)
     return pagamento, True
 
 
@@ -71,6 +74,7 @@ def libertar_pagamento(pagamento_id, user=None, automatico=False):
     except GatewayErro:
         raise PagamentoErro("Falha na transferencia para o profissional; tente novamente.", 502)
     pagamento.transitar(E.LIBERTADO, data_libertacao=timezone.now())
+    notificacoes.pagamento_libertado(pagamento)
     return pagamento
 
 

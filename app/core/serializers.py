@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from .services.embeddings import atualizar_embedding
-from .models import Avaliacao, Certificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -218,3 +218,10 @@ class AtualizarSessaoSerializer(serializers.Serializer):
         if data["acao"] == "reagendar" and not ("slot_id" in data and "data_hora" in data):
             raise serializers.ValidationError("reagendar exige slot_id e data_hora.")
         return data
+
+
+class NotificacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacao
+        fields = ["id", "mensagem", "lida", "data_criacao"]
+        read_only_fields = ["id", "mensagem", "data_criacao"]
