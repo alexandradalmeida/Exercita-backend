@@ -16,7 +16,7 @@ class GoogleCalendarGateway:
 
 
 def _escape(texto):
-    return texto.replace("\\", "\\\\").replace(";", "\;").replace(",", "\,").replace("\n", "\n")
+    return (texto.replace("\\", "\\\\").replace(";", r"\;").replace(",", r"\,").replace("\n", r"\n"))
 
 
 def _utc(dt):

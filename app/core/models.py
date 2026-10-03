@@ -1,5 +1,6 @@
 from pgvector.django import HnswIndex, VectorField
 from django.contrib.postgres.fields import ArrayField
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from .fields import EncryptedCharField
@@ -146,13 +147,20 @@ class Sessao(models.Model):
 
 
 class Avaliacao(models.Model):
-    sessao = models.OneToOneField(Sessao, on_delete=models.CASCADE, related_name="avaliacao")
-    classificacao = models.PositiveSmallIntegerField()
+    """Avaliacao mutua de uma sessao realizada (BR-05): aluno -> PT e PT -> aluno.
+    Apenas as avaliacoes recebidas por um PT contam para a sua reputacao publica."""
+    sessao = models.ForeignKey(Sessao, on_delete=models.CASCADE, related_name="avaliacoes")
+    autor = models.ForeignKey(Utilizador, on_delete=models.CASCADE, related_name="avaliacoes_feitas")
+    avaliado = models.ForeignKey(Utilizador, on_delete=models.CASCADE, related_name="avaliacoes_recebidas")
+    classificacao = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comentario = models.TextField(blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["sessao", "autor"], name="uma_avaliacao_por_autor_e_sessao")]
+
     def __str__(self):
-        return f"Avaliacao Sessao {self.sessao_id}"
+        return f"Avaliacao Sessao {self.sessao_id} por {self.autor_id}"
 
 
 class Pagamento(models.Model):

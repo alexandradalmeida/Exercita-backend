@@ -145,7 +145,7 @@ class TrainerListaSerializer(serializers.ModelSerializer):
         return obj.total_slots > 0 and obj.capacidade_total - obj.ocupadas_total <= 0
 
 class AvaliacaoPublicaSerializer(serializers.ModelSerializer):
-    aluno = serializers.CharField(source="sessao.aluno.utilizador.username", read_only=True)
+    aluno = serializers.CharField(source="autor.username", read_only=True)
 
     class Meta:
         model = Avaliacao
@@ -170,8 +170,8 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
 
     def get_avaliacoes(self, obj):
         qs = (
-            Avaliacao.objects.filter(sessao__personal_trainer=obj, sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
-            .select_related("sessao__aluno__utilizador").order_by("-data_criacao")[:20]
+            Avaliacao.objects.filter(avaliado=obj.utilizador, sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
+            .select_related("autor").order_by("-data_criacao")[:20]
         )
         return AvaliacaoPublicaSerializer(qs, many=True).data
 

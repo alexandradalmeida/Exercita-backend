@@ -51,7 +51,10 @@ class DesempenhoPesquisaTestCase(TestCase):
             Sessao(aluno=aluno, personal_trainer=pt, data_hora=timezone.now(), estado="realizada")
             for pt in pts for _ in range(2)
         ])
-        Avaliacao.objects.bulk_create([Avaliacao(sessao=s, classificacao=rnd.randint(1, 5)) for s in sessoes])
+        Avaliacao.objects.bulk_create([
+            Avaliacao(sessao=s, autor=aluno_u, avaliado=s.personal_trainer.utilizador, classificacao=rnd.randint(1, 5))
+            for s in sessoes
+        ])
         cls.aluno_u = aluno_u
 
     def test_p95_abaixo_de_2_segundos(self):

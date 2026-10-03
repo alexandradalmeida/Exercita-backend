@@ -86,7 +86,8 @@ def criar_avaliacao(pt, nota, n=[0]):
     u = Utilizador.objects.create_user(username=f"aluno{n[0]}", password="SenhaForte123!", tipo="aluno", is_active=True)
     aluno = UtilizadorAluno.objects.create(utilizador=u)
     sessao = Sessao.objects.create(aluno=aluno, personal_trainer=pt, data_hora=timezone.now(), estado="realizada")
-    return Avaliacao.objects.create(sessao=sessao, classificacao=nota, comentario="ok")
+    return Avaliacao.objects.create(
+        sessao=sessao, autor=u, avaliado=pt.utilizador, classificacao=nota, comentario="ok")
 
 
 class PesquisaTrainersTestCase(TestCase):
