@@ -1,3 +1,5 @@
+from pgvector.django import VectorField
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from .fields import EncryptedCharField
@@ -32,6 +34,11 @@ class PersonalTrainer(models.Model):
         PENDENTE = "pendente", "Pendente de Verificação"
         VERIFICADO = "verificado", "Verificado"
 
+    class ModalidadePagamento(models.TextChoices):
+        MULTICAIXA = "multicaixa", "Multicaixa Express"
+        DINHEIRO = "dinheiro", "Dinheiro"
+        TRANSFERENCIA = "transferencia", "Transferência Bancária"
+
     utilizador = models.OneToOneField(
         Utilizador, on_delete=models.CASCADE, related_name="perfil_personal_trainer"
     )
@@ -41,10 +48,15 @@ class PersonalTrainer(models.Model):
     )
     especialidade = models.CharField(max_length=255, blank=True)
     biografia = models.TextField(blank=True)
+    preco_hora = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    modalidades_pagamento = ArrayField(
+        models.CharField(max_length=20, choices=ModalidadePagamento.choices),
+        blank=True, default=list,
+    )
+    embedding = VectorField(dimensions=1536, null=True, blank=True)
 
     def __str__(self):
         return f"PT: {self.utilizador.username}"
-
 
 class Ginasio(models.Model):
     nome = models.CharField(max_length=255)
@@ -128,3 +140,54 @@ class Notificacao(models.Model):
 
     def __str__(self):
         return f"Notificacao {self.id} - {self.utilizador}"
+
+
+class Certificacao(models.Model):
+    personal_trainer = models.ForeignKey(
+        PersonalTrainer, on_delete=models.CASCADE, related_name="certificacoes"
+    )
+    nome = models.CharField(max_length=255)
+    instituicao = models.CharField(max_length=255, blank=True)
+    ano_obtencao = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.nome} ({self.personal_trainer.utilizador.username})"
+
+
+class SlotDisponibilidade(models.Model):
+    class DiaSemana(models.IntegerChoices):
+        SEGUNDA = 0, "Segunda-feira"
+        TERCA = 1, "Terça-feira"
+        QUARTA = 2, "Quarta-feira"
+        QUINTA = 3, "Quinta-feira"
+        SEXTA = 4, "Sexta-feira"
+        SABADO = 5, "Sábado"
+        DOMINGO = 6, "Domingo"
+
+    personal_trainer = models.ForeignKey(
+        PersonalTrainer, on_delete=models.CASCADE, related_name="slots_disponibilidade"
+    )
+    dia_semana = models.IntegerField(choices=DiaSemana.choices)
+    hora_inicio = models.TimeField()
+    hora_fim = models.TimeField()
+    capacidade = models.PositiveIntegerField(default=1)
+    vagas_ocupadas = models.PositiveIntegerField(default=0)
+
+    @property
+    def vagas_disponiveis(self):
+        return max(self.capacidade - self.vagas_ocupadas, 0)
+
+    def __str__(self):
+        return f"{self.get_dia_semana_display()} {self.hora_inicio}-{self.hora_fim} ({self.personal_trainer.utilizador.username})"
+
+
+class Favorito(models.Model):
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="favoritos")
+    personal_trainer = models.ForeignKey(PersonalTrainer, on_delete=models.CASCADE, related_name="favoritado_por")
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["aluno", "personal_trainer"]
+
+    def __str__(self):
+        return f"{self.aluno.utilizador.username} -> {self.personal_trainer.utilizador.username}"
