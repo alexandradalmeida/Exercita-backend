@@ -1,9 +1,11 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Certificacao, PersonalTrainer, SlotDisponibilidade
-from .permissions import IsPersonalTrainerVerificado
+from .models import Certificacao, Favorito, PersonalTrainer, SlotDisponibilidade
+from .permissions import IsAluno, IsPersonalTrainerVerificado
 from .search import pesquisar_trainers
 from .serializers import (
     CertificacaoSerializer,
@@ -78,3 +80,38 @@ class TrainerDisponibilidadeView(generics.ListAPIView):
             estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO,
         )
         return pt.slots_disponibilidade.order_by("dia_semana", "hora_inicio")
+
+
+class FavoritosView(generics.ListAPIView):
+    """GET /api/v1/favorites/ - lista de PTs guardados pelo aluno.
+    POST /api/v1/favorites/ {"trainer_id": N} - adiciona."""
+    permission_classes = [IsAluno]
+    serializer_class = TrainerListaSerializer
+
+    def get_queryset(self):
+        return pesquisar_trainers({}).filter(favoritado_por__aluno=self.request.user.perfil_aluno)
+
+    def post(self, request):
+        trainer_id = request.data.get("trainer_id")
+        pt = PersonalTrainer.objects.filter(
+            pk=trainer_id if str(trainer_id).isdigit() else None,
+            estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO,
+        ).first()
+        if pt is None:
+            return Response({"mensagem": "Personal Trainer nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        _, criado = Favorito.objects.get_or_create(aluno=request.user.perfil_aluno, personal_trainer=pt)
+        return Response(
+            {"mensagem": "Adicionado aos favoritos." if criado else "Ja estava nos favoritos.", "trainer_id": pt.id},
+            status=status.HTTP_201_CREATED if criado else status.HTTP_200_OK,
+        )
+
+
+class FavoritoDetalheView(APIView):
+    """DELETE /api/v1/favorites/{trainer_id}/ - remove dos favoritos."""
+    permission_classes = [IsAluno]
+
+    def delete(self, request, pk):
+        apagados, _ = Favorito.objects.filter(aluno=request.user.perfil_aluno, personal_trainer_id=pk).delete()
+        if not apagados:
+            return Response({"mensagem": "Favorito nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

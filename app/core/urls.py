@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet, TrainerDisponibilidadeView, TrainerListView, TrainerPerfilView
+from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet, FavoritoDetalheView, FavoritosView, TrainerDisponibilidadeView, TrainerListView, TrainerPerfilView
 from .views import (
     RegistoView, ConfirmarEmailView, LoginView, LogoutView,
     MeuPerfilAlunoView, MeuPerfilPersonalTrainerView,
@@ -29,5 +29,7 @@ urlpatterns = [
     path("trainers/", TrainerListView.as_view(), name="trainers"),
     path("trainers/<int:pk>/profile/", TrainerPerfilView.as_view(), name="trainer_profile"),
     path("trainers/<int:pk>/availability/", TrainerDisponibilidadeView.as_view(), name="trainer_availability"),
+    path("favorites/", FavoritosView.as_view(), name="favoritos"),
+    path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("", include(router.urls)),
 ]

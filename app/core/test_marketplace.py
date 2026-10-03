@@ -195,3 +195,49 @@ class PerfilPublicoTestCase(TestCase):
     def test_disponibilidade_de_nao_verificado_404(self):
         nv = criar_pt("nv3", verificado=False)
         self.assertEqual(self.client.get(f"/api/v1/trainers/{nv.id}/availability/").status_code, 404)
+
+
+class FavoritosTestCase(TestCase):
+    url = "/api/v1/favorites/"
+
+    def setUp(self):
+        from .models import UtilizadorAluno
+        self.client = APIClient()
+        self.u = Utilizador.objects.create_user(username="fav", password="SenhaForte123!", tipo="aluno", is_active=True)
+        UtilizadorAluno.objects.create(utilizador=self.u)
+        self.client.force_authenticate(self.u)
+        self.pt = criar_pt("favpt", especialidade="Boxe")
+
+    def test_adiciona_lista_e_remove(self):
+        r = self.client.post(self.url, {"trainer_id": self.pt.id}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        lista = self.client.get(self.url).data["results"]
+        self.assertEqual([x["id"] for x in lista], [self.pt.id])
+        self.assertEqual(self.client.delete(f"{self.url}{self.pt.id}/").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(self.client.get(self.url).data["results"], [])
+
+    def test_adicionar_duas_vezes_nao_duplica(self):
+        self.client.post(self.url, {"trainer_id": self.pt.id}, format="json")
+        r = self.client.post(self.url, {"trainer_id": self.pt.id}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self.client.get(self.url).data["results"]), 1)
+
+    def test_pt_inexistente_ou_nao_verificado(self):
+        nv = criar_pt("favnv", verificado=False)
+        self.assertEqual(self.client.post(self.url, {"trainer_id": nv.id}, format="json").status_code, 404)
+        self.assertEqual(self.client.post(self.url, {"trainer_id": "abc"}, format="json").status_code, 404)
+
+    def test_remover_inexistente(self):
+        self.assertEqual(self.client.delete(f"{self.url}{self.pt.id}/").status_code, 404)
+
+    def test_favoritos_sao_por_aluno(self):
+        from .models import UtilizadorAluno
+        self.client.post(self.url, {"trainer_id": self.pt.id}, format="json")
+        u2 = Utilizador.objects.create_user(username="fav2", password="SenhaForte123!", tipo="aluno", is_active=True)
+        UtilizadorAluno.objects.create(utilizador=u2)
+        self.client.force_authenticate(u2)
+        self.assertEqual(self.client.get(self.url).data["results"], [])
+
+    def test_pt_nao_tem_favoritos(self):
+        self.client.force_authenticate(self.pt.utilizador)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
