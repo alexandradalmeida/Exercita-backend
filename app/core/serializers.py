@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Ginasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Ginasio, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -307,3 +307,13 @@ class GinasioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Um ginasio parceiro precisa de coordenadas: indique latitude/longitude ou uma morada geocodificavel.")
         return data
+
+
+class ReservaGinasioSerializer(serializers.ModelSerializer):
+    ginasio_nome = serializers.CharField(source="ginasio.nome", read_only=True)
+
+    class Meta:
+        model = ReservaGinasio
+        fields = ["id", "ginasio", "ginasio_nome", "personal_trainer", "tipo", "data_hora", "estado", "notas"]
+        read_only_fields = ["id", "ginasio", "ginasio_nome", "estado"]
+        extra_kwargs = {"personal_trainer": {"required": False, "allow_null": True}}

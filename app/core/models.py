@@ -305,3 +305,28 @@ class Favorito(models.Model):
 
     def __str__(self):
         return f"{self.aluno.utilizador.username} -> {self.personal_trainer.utilizador.username}"
+
+class ReservaGinasio(models.Model):
+    """Reserva de aula experimental ou visita a um ginasio parceiro (UC-10)."""
+
+    class Tipo(models.TextChoices):
+        AULA_EXPERIMENTAL = "aula_experimental", "Aula Experimental"
+        VISITA = "visita", "Visita"
+
+    class Estado(models.TextChoices):
+        CONFIRMADA = "confirmada", "Confirmada"
+        CANCELADA = "cancelada", "Cancelada"
+
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="reservas_ginasio")
+    ginasio = models.ForeignKey(Ginasio, on_delete=models.CASCADE, related_name="reservas")
+    personal_trainer = models.ForeignKey(
+        PersonalTrainer, on_delete=models.SET_NULL, null=True, blank=True, related_name="reservas_ginasio"
+    )  # PT que acompanha a aula experimental (tem de trabalhar no ginasio)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    data_hora = models.DateTimeField()
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.CONFIRMADA)
+    notas = models.TextField(blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Reserva {self.id} - {self.ginasio_id} ({self.estado})"

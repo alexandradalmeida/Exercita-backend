@@ -46,9 +46,9 @@ def notificar(utilizador, mensagem, assunto="Exercita"):
     return notificacao
 
 
-def _fmt(sessao):
+def _fmt(obj):
     from django.utils import timezone
-    return timezone.localtime(sessao.data_hora).strftime("%d/%m/%Y as %H:%M")
+    return timezone.localtime(obj.data_hora).strftime("%d/%m/%Y as %H:%M")
 
 
 # --- eventos de dominio ---
@@ -140,3 +140,13 @@ def estado_qualidade_alterado(pt, media):
         "verificado": "O seu perfil esta verificado e ativo.",
     }
     notificar(pt.utilizador, mensagens[pt.estado_verificacao], "Estado do seu perfil")
+
+
+def reserva_ginasio(reserva, evento):
+    quando = _fmt(reserva)
+    texto = f"A sua {reserva.get_tipo_display().lower()} em {reserva.ginasio.nome} ({quando}) foi {evento}."
+    notificar(reserva.aluno.utilizador, texto, f"Reserva {evento}")
+    if reserva.personal_trainer_id:
+        notificar(reserva.personal_trainer.utilizador,
+                  f"{reserva.aluno.utilizador.username}: {reserva.get_tipo_display().lower()} em "
+                  f"{reserva.ginasio.nome} ({quando}) {evento}.", f"Reserva {evento}")
