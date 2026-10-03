@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from .services.embeddings import atualizar_embedding
-from .models import Avaliacao, Certificacao, PersonalTrainer, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -70,7 +70,7 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "email", "telefone",
             "estado_verificacao", "especialidade", "localizacao", "biografia",
-            "preco_hora", "modalidades_pagamento",
+            "preco_hora", "modalidades_pagamento", "janela_cancelamento_horas",
         ]
         read_only_fields = ["estado_verificacao"]  # só muda via processo de verificação, não pelo próprio PT
 
@@ -170,7 +170,7 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
 
     def get_avaliacoes(self, obj):
         qs = (
-            Avaliacao.objects.filter(sessao__personal_trainer=obj, sessao__estado="realizada")
+            Avaliacao.objects.filter(sessao__personal_trainer=obj, sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
             .select_related("sessao__aluno__utilizador").order_by("-data_criacao")[:20]
         )
         return AvaliacaoPublicaSerializer(qs, many=True).data

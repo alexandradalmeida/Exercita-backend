@@ -3,7 +3,7 @@ from django.db.models.functions import Coalesce
 
 from pgvector.django import CosineDistance
 
-from .models import Avaliacao, PersonalTrainer, SlotDisponibilidade
+from .models import Avaliacao, PersonalTrainer, Sessao, SlotDisponibilidade
 from .services.embeddings import obter_gerador
 
 
@@ -12,7 +12,7 @@ def pesquisar_trainers(params, gerador=None):
     Com `q`, ordena por relevancia (matching por embeddings, distancia do cosseno).
     Os agregados usam subqueries para nao multiplicar linhas entre relacoes diferentes."""
     avaliacoes = (
-        Avaliacao.objects.filter(sessao__personal_trainer=OuterRef("pk"), sessao__estado="realizada")
+        Avaliacao.objects.filter(sessao__personal_trainer=OuterRef("pk"), sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
         .values("sessao__personal_trainer")
     )
     slots = SlotDisponibilidade.objects.filter(personal_trainer=OuterRef("pk")).values("personal_trainer")

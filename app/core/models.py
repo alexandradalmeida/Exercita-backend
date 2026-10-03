@@ -50,6 +50,8 @@ class PersonalTrainer(models.Model):
     localizacao = models.CharField(max_length=255, blank=True)
     biografia = models.TextField(blank=True)
     preco_hora = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # UC-08: ate quantas horas antes da sessao o aluno pode cancelar com reembolso total
+    janela_cancelamento_horas = models.PositiveIntegerField(default=24)
     modalidades_pagamento = ArrayField(
         models.CharField(max_length=20, choices=ModalidadePagamento.choices),
         blank=True, default=list,
@@ -80,18 +82,61 @@ class Ginasio(models.Model):
         return self.nome
 
 
+class TransicaoInvalida(Exception):
+    """Mudanca de estado nao permitida pela maquina de estados."""
+
+
 class Sessao(models.Model):
     class EstadoSessao(models.TextChoices):
         AGENDADA = "agendada", "Agendada"
+        CONFIRMADA = "confirmada", "Confirmada"
+        EM_CURSO = "em_curso", "Em Curso"
         REALIZADA = "realizada", "Realizada"
+        AVALIADA = "avaliada", "Avaliada"
         CANCELADA = "cancelada", "Cancelada"
+
+    class Modalidade(models.TextChoices):
+        INDIVIDUAL = "individual", "Individual"
+        PACOTE = "pacote", "Pacote"
+        PLANO_MENSAL = "plano_mensal", "Plano Mensal"
+
+    # estado atual -> estados para onde pode evoluir
+    TRANSICOES = {
+        EstadoSessao.AGENDADA: {EstadoSessao.CONFIRMADA, EstadoSessao.CANCELADA},
+        EstadoSessao.CONFIRMADA: {EstadoSessao.EM_CURSO, EstadoSessao.CANCELADA},
+        EstadoSessao.EM_CURSO: {EstadoSessao.REALIZADA},
+        EstadoSessao.REALIZADA: {EstadoSessao.AVALIADA},
+        EstadoSessao.AVALIADA: set(),
+        EstadoSessao.CANCELADA: set(),
+    }
+    ESTADOS_REALIZADOS = (EstadoSessao.REALIZADA, EstadoSessao.AVALIADA)
 
     aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="sessoes")
     personal_trainer = models.ForeignKey(PersonalTrainer, on_delete=models.CASCADE, related_name="sessoes")
     ginasio = models.ForeignKey(Ginasio, on_delete=models.SET_NULL, null=True, blank=True)
+    slot = models.ForeignKey(
+        "SlotDisponibilidade", on_delete=models.SET_NULL, null=True, blank=True, related_name="sessoes"
+    )
     data_hora = models.DateTimeField()
+    modalidade = models.CharField(max_length=20, choices=Modalidade.choices, default=Modalidade.INDIVIDUAL)
+    quantidade_sessoes = models.PositiveIntegerField(default=1)
+    valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     estado = models.CharField(max_length=20, choices=EstadoSessao.choices, default=EstadoSessao.AGENDADA)
+    cancelada_por = models.ForeignKey(
+        Utilizador, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    data_cancelamento = models.DateTimeField(null=True, blank=True)
     notas = models.TextField(blank=True)
+
+    def pode_transitar(self, novo_estado):
+        return novo_estado in self.TRANSICOES[self.estado]
+
+    def transitar(self, novo_estado):
+        """Muda o estado respeitando a maquina de estados; guarda a sessao."""
+        if not self.pode_transitar(novo_estado):
+            raise TransicaoInvalida(f"Sessao nao pode passar de '{self.estado}' para '{novo_estado}'.")
+        self.estado = novo_estado
+        self.save(update_fields=["estado"])
 
     def __str__(self):
         return f"Sessao {self.id} - {self.estado}"
