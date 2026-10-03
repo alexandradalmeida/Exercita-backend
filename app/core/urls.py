@@ -3,6 +3,7 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
+from .views_faturacao import DocumentoFinanceiroViewSet
 from .views_loja import (
     CarrinhoItemView, CarrinhoItensView, CarrinhoView, CheckoutView, EncomendaViewSet, ProdutoViewSet,
 )
@@ -29,6 +30,7 @@ router.register("perfil/personal-trainer/slots", SlotDisponibilidadeViewSet, bas
 router.register("gyms", GinasioViewSet, basename="ginasio")
 router.register("shop/products", ProdutoViewSet, basename="produto")
 router.register("shop/orders", EncomendaViewSet, basename="encomenda")
+router.register("billing/documents", DocumentoFinanceiroViewSet, basename="documento")
 router.register("nutrition/plans", PlanoNutricionalViewSet, basename="plano_nutricional")
 router.register("nutrition/logs", RegistoRefeicaoViewSet, basename="registo_refeicao")
 

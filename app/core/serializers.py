@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, DocumentoFinanceiro, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -464,3 +464,12 @@ class EventoEncomendaSerializer(serializers.ModelSerializer):
 class AtualizarEncomendaSerializer(serializers.Serializer):
     acao = serializers.ChoiceField(choices=["cancelar", "preparar", "enviar", "entregar"])
     codigo_rastreio = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+
+class DocumentoFinanceiroSerializer(serializers.ModelSerializer):
+    tipo_display = serializers.CharField(source="get_tipo_display", read_only=True)
+    pagamento_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = DocumentoFinanceiro
+        fields = ["id", "numero", "tipo", "tipo_display", "pagamento_id", "linhas", "total", "data_emissao"]

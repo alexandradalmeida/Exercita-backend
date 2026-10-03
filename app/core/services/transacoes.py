@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Encomenda, Pagamento, Sessao
-from . import loja, notificacoes
+from . import faturacao, loja, notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import PagamentoErro
 
@@ -43,6 +43,7 @@ def processar_callback(pagamento_id, referencia, resultado):
 
     if resultado == E.APROVADO:
         pagamento.transitar(E.APROVADO, data_aprovacao=timezone.now())
+        faturacao.emitir_documentos(pagamento)
         if pagamento.encomenda_id:
             encomenda = pagamento.encomenda
             encomenda.transitar(Encomenda.Estado.PAGA)

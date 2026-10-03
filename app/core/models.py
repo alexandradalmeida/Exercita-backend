@@ -470,3 +470,38 @@ class EventoEncomenda(models.Model):
 
     class Meta:
         ordering = ["data", "id"]
+
+
+class SequenciaDocumento(models.Model):
+    """Contador de numeracao por tipo de documento e ano (sem falhas nem repeticoes)."""
+    tipo = models.CharField(max_length=10)
+    ano = models.PositiveIntegerField()
+    ultimo = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["tipo", "ano"], name="sequencia_unica_por_tipo_e_ano")]
+
+
+class DocumentoFinanceiro(models.Model):
+    """Fatura ou recibo emitido automaticamente quando um pagamento e aprovado.
+    TODO: nao e um documento fiscalmente certificado; a emissao oficial (ex.: software certificado)
+    depende de requisitos legais a confirmar."""
+
+    class Tipo(models.TextChoices):
+        FATURA = "FT", "Fatura"
+        RECIBO = "RC", "Recibo"
+
+    pagamento = models.ForeignKey(Pagamento, on_delete=models.PROTECT, related_name="documentos")
+    cliente = models.ForeignKey(Utilizador, on_delete=models.PROTECT, related_name="documentos_financeiros")
+    tipo = models.CharField(max_length=2, choices=Tipo.choices)
+    numero = models.CharField(max_length=20, unique=True)  # ex.: FT 2026/0001
+    linhas = models.JSONField(default=list)  # [{"descricao", "quantidade", "preco_unitario", "subtotal"}]
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    data_emissao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["pagamento", "tipo"], name="um_documento_por_tipo_e_pagamento")]
+        ordering = ["-data_emissao", "-id"]
+
+    def __str__(self):
+        return self.numero
