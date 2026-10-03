@@ -34,7 +34,7 @@ class RegistoView(generics.CreateAPIView):
 
         uid = urlsafe_base64_encode(force_bytes(utilizador.pk))
         token = default_token_generator.make_token(utilizador)
-        link_confirmacao = f"http://localhost:8000/api/v1/users/confirm-email/?uid={uid}&token={token}"
+        link_confirmacao = f"{config('BACKEND_URL', default='http://localhost:8000')}/api/v1/users/confirm-email/?uid={uid}&token={token}"
 
         send_mail(
             subject="Confirme o seu email - Exercita",

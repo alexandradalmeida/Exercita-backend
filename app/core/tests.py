@@ -1,3 +1,6 @@
+from unittest.mock import patch
+
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -36,6 +39,16 @@ class RegistoTestCase(TestCase):
         utilizador = Utilizador.objects.get(username="testept")
         pt = PersonalTrainer.objects.get(utilizador=utilizador)
         self.assertEqual(pt.estado_verificacao, PersonalTrainer.EstadoVerificacao.PENDENTE)
+
+    @patch("core.views.config", side_effect=lambda k, default=None: "https://api.exercita.ao" if k == "BACKEND_URL" else default)
+    def test_link_de_confirmacao_usa_backend_url(self, _config):
+        self.client.post("/api/v1/users/", {
+            "username": "linkteste",
+            "email": "link@example.com",
+            "password": "SenhaForte123!",
+            "tipo": "aluno",
+        })
+        self.assertIn("https://api.exercita.ao/api/v1/users/confirm-email/", mail.outbox[0].body)
 
     def test_registo_com_username_duplicado_falha(self):
         Utilizador.objects.create_user(username="existente", email="a@a.com", password="SenhaForte123!")
