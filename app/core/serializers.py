@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, PlanoNutricional, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -392,3 +392,14 @@ class RegistoRefeicaoSerializer(serializers.ModelSerializer):
         if refeicao is not None and refeicao.plano.aluno_id != aluno.id:
             raise serializers.ValidationError("Essa refeicao nao pertence a um plano seu.")
         return refeicao
+
+
+class ProdutoSerializer(serializers.ModelSerializer):
+    em_stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Produto
+        fields = ["id", "nome", "descricao", "categoria", "preco", "stock", "em_stock", "imagem_url", "ativo"]
+
+    def get_em_stock(self, obj):
+        return obj.stock > 0

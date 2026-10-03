@@ -270,14 +270,20 @@ class RegistoRefeicao(models.Model):
 
 
 class Produto(models.Model):
+    class Categoria(models.TextChoices):
+        SUPLEMENTO = "suplemento", "Suplemento"
+        VESTUARIO = "vestuario", "Vestuário"
+
     nome = models.CharField(max_length=255)
     descricao = models.TextField(blank=True)
-    preco = models.DecimalField(max_digits=10, decimal_places=2)
+    categoria = models.CharField(max_length=20, choices=Categoria.choices, default=Categoria.SUPLEMENTO)
+    preco = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     stock = models.PositiveIntegerField(default=0)
+    imagem_url = models.URLField(blank=True)
+    ativo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nome
-
 
 class Notificacao(models.Model):
     utilizador = models.ForeignKey(Utilizador, on_delete=models.CASCADE, related_name="notificacoes")
