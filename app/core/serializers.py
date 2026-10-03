@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from .services.embeddings import atualizar_embedding
-from .models import Avaliacao, Certificacao, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -174,3 +174,34 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
             .select_related("sessao__aluno__utilizador").order_by("-data_criacao")[:20]
         )
         return AvaliacaoPublicaSerializer(qs, many=True).data
+
+
+class PagamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pagamento
+        fields = [
+            "id", "sessao", "valor", "comissao_plataforma", "valor_liquido_pt", "estado",
+            "referencia_multicaixa", "data_criacao", "data_aprovacao", "data_libertacao",
+        ]
+        read_only_fields = fields
+
+
+class SessaoSerializer(serializers.ModelSerializer):
+    pagamentos = PagamentoSerializer(many=True, read_only=True)
+    trainer_id = serializers.IntegerField(source="personal_trainer_id", read_only=True)
+
+    class Meta:
+        model = Sessao
+        fields = [
+            "id", "trainer_id", "slot", "data_hora", "modalidade", "quantidade_sessoes",
+            "valor_total", "estado", "data_cancelamento", "notas", "pagamentos",
+        ]
+        read_only_fields = fields
+
+
+class ContratarSessaoSerializer(serializers.Serializer):
+    trainer_id = serializers.IntegerField()
+    slot_id = serializers.IntegerField()
+    data_hora = serializers.DateTimeField()
+    modalidade = serializers.ChoiceField(choices=Sessao.Modalidade.choices, default=Sessao.Modalidade.INDIVIDUAL)
+    quantidade_sessoes = serializers.IntegerField(min_value=1, default=1)
