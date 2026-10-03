@@ -2,7 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from .services.embeddings import atualizar_embedding
-from .models import Avaliacao, Certificacao, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from datetime import time
+
+from .models import Avaliacao, Certificacao, Ginasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -239,3 +241,41 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
 class CriarAvaliacaoSerializer(serializers.Serializer):
     classificacao = serializers.IntegerField(min_value=1, max_value=5)
     comentario = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
+
+
+class GinasioSerializer(serializers.ModelSerializer):
+    distancia_km = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = Ginasio
+        fields = [
+            "id", "nome", "morada", "latitude", "longitude", "equipamentos", "horarios",
+            "estado_parceria", "distancia_km",
+        ]
+
+    def validate_latitude(self, valor):
+        if valor is not None and not -90 <= valor <= 90:
+            raise serializers.ValidationError("latitude tem de estar entre -90 e 90.")
+        return valor
+
+    def validate_longitude(self, valor):
+        if valor is not None and not -180 <= valor <= 180:
+            raise serializers.ValidationError("longitude tem de estar entre -180 e 180.")
+        return valor
+
+    def validate_horarios(self, horarios):
+        if not isinstance(horarios, dict):
+            raise serializers.ValidationError("horarios tem de ser um objeto {dia: [[abertura, fecho], ...]}.")
+        for dia, intervalos in horarios.items():
+            if dia not in {"0", "1", "2", "3", "4", "5", "6"}:
+                raise serializers.ValidationError(f"Dia invalido '{dia}' (use 0 a 6, 0 = segunda).")
+            if not isinstance(intervalos, list):
+                raise serializers.ValidationError(f"Dia {dia}: esperada uma lista de intervalos.")
+            for intervalo in intervalos:
+                try:
+                    abre, fecha = (time.fromisoformat(h) for h in intervalo)
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError(f"Dia {dia}: intervalo invalido {intervalo} (use [\"HH:MM\", \"HH:MM\"]).")
+                if fecha <= abre:
+                    raise serializers.ValidationError(f"Dia {dia}: o fecho tem de ser posterior a abertura.")
+        return horarios

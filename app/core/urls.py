@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
+from .views_ginasios import GinasioViewSet
 from .views_sessoes import (
     IniciarPagamentoView, LibertarPagamentoView, PagamentoWebhookView, SessaoAvaliacoesView, SessaoCalendarioView, SessaoDetalheView, SessaoListCreateView,
 )
@@ -17,6 +18,7 @@ from .views import (
 router = SimpleRouter()
 router.register("perfil/personal-trainer/certificacoes", CertificacaoViewSet, basename="certificacao")
 router.register("perfil/personal-trainer/slots", SlotDisponibilidadeViewSet, basename="slot")
+router.register("gyms", GinasioViewSet, basename="ginasio")
 
 urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

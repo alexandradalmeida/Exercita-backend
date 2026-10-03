@@ -84,10 +84,20 @@ class PersonalTrainer(models.Model):
         return f"PT: {self.utilizador.username}"
 
 class Ginasio(models.Model):
+    class EstadoParceria(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        PARCEIRO = "parceiro", "Parceiro"
+        INATIVO = "inativo", "Inativo"
+
     nome = models.CharField(max_length=255)
     morada = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    equipamentos = ArrayField(models.CharField(max_length=100), blank=True, default=list)
+    # {"0": [["06:00", "22:00"]], ...} - chave = dia da semana (0 = segunda), valor = intervalos de abertura
+    horarios = models.JSONField(blank=True, default=dict)
+    estado_parceria = models.CharField(max_length=20, choices=EstadoParceria.choices, default=EstadoParceria.PENDENTE)
+    personal_trainers = models.ManyToManyField(PersonalTrainer, blank=True, related_name="ginasios")
 
     def __str__(self):
         return self.nome
