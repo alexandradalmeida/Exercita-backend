@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
+from .models import Encomenda, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
 from .permissions import IsAluno
 from .serializers import (
     AvaliacaoSerializer, CriarAvaliacaoSerializer,
@@ -15,7 +15,9 @@ from .services.avaliacoes import avaliar_sessao
 from .services.calendario import sessao_para_ics
 from .services.multicaixa import assinatura_valida
 from .services.pagamentos import PagamentoErro
-from .services.transacoes import iniciar_pagamento, libertar_pagamento, processar_callback
+from .services.transacoes import (
+    iniciar_pagamento, iniciar_pagamento_encomenda, libertar_pagamento, processar_callback,
+)
 from .services.sessoes import (
     ErroNegocio, avancar_sessao, cancelar_sessao, contratar_personal_trainer, reagendar_sessao, reclamar_sessao,
 )
@@ -92,13 +94,18 @@ class SessaoDetalheView(generics.RetrieveUpdateAPIView):
 
 
 class IniciarPagamentoView(APIView):
-    """POST /api/v1/payments/ {"sessao_id": N} - inicia a transacao no Multicaixa Express."""
+    """POST /api/v1/payments/ {"sessao_id": N} ou {"encomenda_id": N} - inicia a transacao no Multicaixa Express."""
     permission_classes = [IsAluno]
 
     def post(self, request):
-        sessao = get_object_or_404(Sessao, pk=request.data.get("sessao_id"), aluno__utilizador=request.user)
+        aluno = request.user.perfil_aluno
         try:
-            pagamento = iniciar_pagamento(sessao)
+            if request.data.get("encomenda_id") is not None:
+                encomenda = get_object_or_404(Encomenda, pk=request.data["encomenda_id"], aluno=aluno)
+                pagamento = iniciar_pagamento_encomenda(encomenda)
+            else:
+                sessao = get_object_or_404(Sessao, pk=request.data.get("sessao_id"), aluno=aluno)
+                pagamento = iniciar_pagamento(sessao)
         except PagamentoErro as erro:
             return Response({"mensagem": erro.mensagem}, status=erro.codigo)
         return Response(PagamentoSerializer(pagamento).data, status=status.HTTP_201_CREATED)

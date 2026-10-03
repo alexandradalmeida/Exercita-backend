@@ -150,3 +150,15 @@ def reserva_ginasio(reserva, evento):
         notificar(reserva.personal_trainer.utilizador,
                   f"{reserva.aluno.utilizador.username}: {reserva.get_tipo_display().lower()} em "
                   f"{reserva.ginasio.nome} ({quando}) {evento}.", f"Reserva {evento}")
+
+
+# --- e-commerce ---
+def encomenda_criada(encomenda):
+    notificar(encomenda.aluno.utilizador,
+              f"Encomenda #{encomenda.id} criada ({encomenda.total} Kz). Conclua o pagamento para a processarmos.",
+              "Encomenda criada")
+
+
+def encomenda_atualizada(encomenda, estado_legivel):
+    notificar(encomenda.aluno.utilizador, f"A sua encomenda #{encomenda.id} esta {estado_legivel}.",
+              "Estado da encomenda")

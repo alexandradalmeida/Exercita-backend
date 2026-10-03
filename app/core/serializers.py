@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Encomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -192,7 +192,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
         fields = [
-            "id", "sessao", "valor", "comissao_plataforma", "valor_liquido_pt", "estado",
+            "id", "sessao", "encomenda", "valor", "comissao_plataforma", "valor_liquido_pt", "estado",
             "referencia_multicaixa", "data_criacao", "data_aprovacao", "data_libertacao",
         ]
         read_only_fields = fields
@@ -403,3 +403,49 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
     def get_em_stock(self, obj):
         return obj.stock > 0
+
+
+class ItemCarrinhoSerializer(serializers.ModelSerializer):
+    produto_id = serializers.IntegerField(read_only=True)
+    nome = serializers.CharField(source="produto.nome", read_only=True)
+    preco_unitario = serializers.DecimalField(source="produto.preco", max_digits=10, decimal_places=2, read_only=True)
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ItemCarrinho
+        fields = ["produto_id", "nome", "preco_unitario", "quantidade", "subtotal"]
+
+    def get_subtotal(self, obj):
+        return obj.produto.preco * obj.quantidade
+
+
+class AdicionarItemSerializer(serializers.Serializer):
+    produto_id = serializers.IntegerField()
+    quantidade = serializers.IntegerField(min_value=1, default=1)
+
+
+class QuantidadeItemSerializer(serializers.Serializer):
+    quantidade = serializers.IntegerField(min_value=1)
+
+
+class CheckoutSerializer(serializers.Serializer):
+    morada_entrega = serializers.CharField(max_length=255)
+
+
+class ItemEncomendaSerializer(serializers.ModelSerializer):
+    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ItemEncomenda
+        fields = ["produto", "nome", "preco_unitario", "quantidade", "subtotal"]
+
+
+class EncomendaSerializer(serializers.ModelSerializer):
+    itens = ItemEncomendaSerializer(many=True, read_only=True)
+    pagamentos = PagamentoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Encomenda
+        fields = ["id", "estado", "total", "morada_entrega", "codigo_rastreio", "data_criacao",
+                  "data_envio", "data_entrega", "itens", "pagamentos"]
+        read_only_fields = fields

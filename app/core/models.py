@@ -201,6 +201,8 @@ class Pagamento(models.Model):
     }
 
     sessao = models.ForeignKey(Sessao, on_delete=models.CASCADE, related_name="pagamentos", null=True, blank=True)
+    encomenda = models.ForeignKey(
+        "Encomenda", on_delete=models.CASCADE, related_name="pagamentos", null=True, blank=True)  # e-commerce (UC-12)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     comissao_plataforma = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # BR-06
     valor_liquido_pt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -387,3 +389,72 @@ class Nutricionista(models.Model):
 
     def __str__(self):
         return f"Nutricionista: {self.utilizador.username}"
+
+
+class Carrinho(models.Model):
+    aluno = models.OneToOneField(UtilizadorAluno, on_delete=models.CASCADE, related_name="carrinho")
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+
+class ItemCarrinho(models.Model):
+    carrinho = models.ForeignKey(Carrinho, on_delete=models.CASCADE, related_name="itens")
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    quantidade = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["carrinho", "produto"], name="um_item_por_produto_no_carrinho")]
+
+
+class Encomenda(models.Model):
+    class Estado(models.TextChoices):
+        PENDENTE_PAGAMENTO = "pendente_pagamento", "Pendente de Pagamento"
+        PAGA = "paga", "Paga"
+        EM_PREPARACAO = "em_preparacao", "Em Preparação"
+        ENVIADA = "enviada", "Enviada"
+        ENTREGUE = "entregue", "Entregue"
+        CANCELADA = "cancelada", "Cancelada"
+
+    TRANSICOES = {
+        Estado.PENDENTE_PAGAMENTO: {Estado.PAGA, Estado.CANCELADA},
+        Estado.PAGA: {Estado.EM_PREPARACAO, Estado.CANCELADA},
+        Estado.EM_PREPARACAO: {Estado.ENVIADA, Estado.CANCELADA},
+        Estado.ENVIADA: {Estado.ENTREGUE},
+        Estado.ENTREGUE: set(),
+        Estado.CANCELADA: set(),
+    }
+
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="encomendas")
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDENTE_PAGAMENTO)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    morada_entrega = models.CharField(max_length=255)
+    codigo_rastreio = models.CharField(max_length=100, blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_envio = models.DateTimeField(null=True, blank=True)
+    data_entrega = models.DateTimeField(null=True, blank=True)
+
+    def pode_transitar(self, novo_estado):
+        return novo_estado in self.TRANSICOES[self.estado]
+
+    def transitar(self, novo_estado, **campos):
+        if not self.pode_transitar(novo_estado):
+            raise TransicaoInvalida(f"Encomenda nao pode passar de '{self.estado}' para '{novo_estado}'.")
+        self.estado = novo_estado
+        for nome, valor in campos.items():
+            setattr(self, nome, valor)
+        self.save(update_fields=["estado", *campos])
+
+    def __str__(self):
+        return f"Encomenda {self.id} ({self.estado})"
+
+
+class ItemEncomenda(models.Model):
+    """Linha da encomenda com o nome e preco no momento da compra."""
+    encomenda = models.ForeignKey(Encomenda, on_delete=models.CASCADE, related_name="itens")
+    produto = models.ForeignKey(Produto, on_delete=models.SET_NULL, null=True, blank=True)
+    nome = models.CharField(max_length=255)
+    preco_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    quantidade = models.PositiveIntegerField()
+
+    @property
+    def subtotal(self):
+        return self.preco_unitario * self.quantidade

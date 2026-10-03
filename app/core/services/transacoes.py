@@ -3,8 +3,8 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import Pagamento, Sessao
-from . import notificacoes
+from ..models import Encomenda, Pagamento, Sessao
+from . import loja, notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import PagamentoErro
 
@@ -43,11 +43,32 @@ def processar_callback(pagamento_id, referencia, resultado):
 
     if resultado == E.APROVADO:
         pagamento.transitar(E.APROVADO, data_aprovacao=timezone.now())
-        notificacoes.pagamento_aprovado(pagamento)
+        if pagamento.encomenda_id:
+            encomenda = pagamento.encomenda
+            encomenda.transitar(Encomenda.Estado.PAGA)
+            notificacoes.encomenda_atualizada(encomenda, "paga e vai ser preparada")
+        else:
+            notificacoes.pagamento_aprovado(pagamento)
     else:
         pagamento.transitar(E.RECUSADO)
-        notificacoes.pagamento_recusado(pagamento)
+        if pagamento.encomenda_id:
+            loja.cancelar_encomenda(pagamento.encomenda)  # liberta o stock reservado
+        else:
+            notificacoes.pagamento_recusado(pagamento)
     return pagamento, True
+
+
+def iniciar_pagamento_encomenda(encomenda):
+    """POST /payments {"encomenda_id": N}: referencia do gateway para o pagamento pendente da encomenda."""
+    if encomenda.estado != Encomenda.Estado.PENDENTE_PAGAMENTO:
+        raise PagamentoErro("So se pode pagar uma encomenda pendente de pagamento.", 409)
+    pagamento = encomenda.pagamentos.filter(estado=E.PENDENTE).first()
+    if pagamento is None:
+        raise PagamentoErro("Nao existe pagamento pendente para esta encomenda.", 409)
+    if not pagamento.referencia_multicaixa:
+        pagamento.referencia_multicaixa = obter_gateway().iniciar_transacao(pagamento)
+        pagamento.save(update_fields=["referencia_multicaixa"])
+    return pagamento
 
 
 @transaction.atomic

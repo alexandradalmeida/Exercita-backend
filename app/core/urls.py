@@ -3,7 +3,9 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
-from .views_loja import ProdutoViewSet
+from .views_loja import (
+    CarrinhoItemView, CarrinhoItensView, CarrinhoView, CheckoutView, ProdutoViewSet,
+)
 from .views_nutricao import (
     MeuPerfilNutricionistaView, PlanoNutricionalViewSet, RegistoRefeicaoViewSet, VerificarNutricionistaView,
 )
@@ -52,6 +54,10 @@ urlpatterns = [
     path("gym-bookings/<int:pk>/", ReservaDetalheView.as_view(), name="reserva_ginasio"),
     path("perfil/nutricionista/", MeuPerfilNutricionistaView.as_view(), name="perfil_nutricionista"),
     path("nutricionistas/<int:pk>/verificar/", VerificarNutricionistaView.as_view(), name="verificar_nutricionista"),
+    path("shop/cart/", CarrinhoView.as_view(), name="carrinho"),
+    path("shop/cart/items/", CarrinhoItensView.as_view(), name="carrinho_itens"),
+    path("shop/cart/items/<int:produto_id>/", CarrinhoItemView.as_view(), name="carrinho_item"),
+    path("shop/checkout/", CheckoutView.as_view(), name="checkout"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
