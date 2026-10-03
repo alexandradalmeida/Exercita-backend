@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 import requests as http_requests
 from decouple import config
+from django.core.cache import cache
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
@@ -139,9 +140,8 @@ GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = config("GOOGLE_REDIRECT_URI")
 
-# armazenamento simples em memória para os states (dev only)
-# em produção isto deve usar cache (Redis) com expiração
-_GOOGLE_STATES = set()
+GOOGLE_STATE_TTL = 600  # segundos
+_GOOGLE_STATE_PREFIX = "google_oauth_state:"
 
 
 class GoogleLoginView(APIView):
@@ -150,7 +150,7 @@ class GoogleLoginView(APIView):
 
     def get(self, request):
         state = secrets.token_urlsafe(32)
-        _GOOGLE_STATES.add(state)
+        cache.set(_GOOGLE_STATE_PREFIX + state, True, GOOGLE_STATE_TTL)
 
         params = {
             "client_id": GOOGLE_CLIENT_ID,
@@ -178,9 +178,9 @@ class GoogleCallbackView(APIView):
         if not code or not state:
             return Response({"mensagem": "code e state sao obrigatorios."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if state not in _GOOGLE_STATES:
-            return Response({"mensagem": "State invalido (possivel CSRF)."}, status=status.HTTP_400_BAD_REQUEST)
-        _GOOGLE_STATES.discard(state)  # state só pode ser usado uma vez
+        # delete devolve True só se a chave existia: o state só pode ser usado uma vez
+        if not cache.delete(_GOOGLE_STATE_PREFIX + state):
+            return Response({"mensagem": "State invalido ou expirado (possivel CSRF)."}, status=status.HTTP_400_BAD_REQUEST)
 
         # troca o code por tokens
         token_response = http_requests.post("https://oauth2.googleapis.com/token", data={

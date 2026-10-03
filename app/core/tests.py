@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.core import mail
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -171,3 +172,29 @@ class VerificacaoPTTestCase(TestCase):
         self.client.force_authenticate(user=aluno)
         response = self.client.post(f"/api/v1/personal-trainers/{self.pt.id}/verificar/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class GoogleStateTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_login_google_devolve_state_guardado_em_cache(self):
+        response = self.client.get("/api/v1/auth/google/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(cache.get("google_oauth_state:" + response.data["state"]))
+
+    def test_callback_com_state_desconhecido_falha(self):
+        response = self.client.get("/api/v1/auth/google/callback/", {"code": "x", "state": "inexistente"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("core.views.http_requests.post")
+    def test_state_so_pode_ser_usado_uma_vez(self, mock_post):
+        mock_post.return_value.status_code = 400
+        mock_post.return_value.text = "erro"
+        state = self.client.get("/api/v1/auth/google/").data["state"]
+
+        primeira = self.client.get("/api/v1/auth/google/callback/", {"code": "x", "state": state})
+        self.assertEqual(mock_post.call_count, 1)  # passou a validacao do state
+        segunda = self.client.get("/api/v1/auth/google/callback/", {"code": "x", "state": state})
+        self.assertEqual(mock_post.call_count, 1)  # state ja consumido
+        self.assertEqual(segunda.status_code, status.HTTP_400_BAD_REQUEST)
