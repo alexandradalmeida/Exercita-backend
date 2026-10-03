@@ -1,5 +1,7 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet
 from .views import (
     RegistoView, ConfirmarEmailView, LoginView, LogoutView,
     MeuPerfilAlunoView, MeuPerfilPersonalTrainerView,
@@ -7,6 +9,10 @@ from .views import (
     GoogleLoginView, GoogleCallbackView,
     AppleLoginView,
 )
+
+router = SimpleRouter()
+router.register("perfil/personal-trainer/certificacoes", CertificacaoViewSet, basename="certificacao")
+router.register("perfil/personal-trainer/slots", SlotDisponibilidadeViewSet, basename="slot")
 
 urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
@@ -20,4 +26,5 @@ urlpatterns = [
     path("perfil/aluno/", MeuPerfilAlunoView.as_view(), name="perfil_aluno"),
     path("perfil/personal-trainer/", MeuPerfilPersonalTrainerView.as_view(), name="perfil_pt"),
     path("personal-trainers/<int:pk>/verificar/", VerificarPersonalTrainerView.as_view(), name="verificar_pt"),
+    path("", include(router.urls)),
 ]

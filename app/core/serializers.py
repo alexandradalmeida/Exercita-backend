@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-from .models import Utilizador, UtilizadorAluno, PersonalTrainer
+from .models import Certificacao, PersonalTrainer, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -88,3 +88,33 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
             instance.utilizador.telefone = utilizador_data["telefone"]
             instance.utilizador.save()
         return super().update(instance, validated_data)
+
+class CertificacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Certificacao
+        fields = ["id", "nome", "instituicao", "ano_obtencao"]
+
+
+class SlotDisponibilidadeSerializer(serializers.ModelSerializer):
+    vagas_disponiveis = serializers.IntegerField(read_only=True)
+    dia_semana_display = serializers.CharField(source="get_dia_semana_display", read_only=True)
+
+    class Meta:
+        model = SlotDisponibilidade
+        fields = [
+            "id", "dia_semana", "dia_semana_display", "hora_inicio", "hora_fim",
+            "capacidade", "vagas_ocupadas", "vagas_disponiveis",
+        ]
+        read_only_fields = ["vagas_ocupadas"]  # gerido pelo sistema ao agendar sessoes
+
+    def validate(self, data):
+        inicio = data.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
+        fim = data.get("hora_fim", getattr(self.instance, "hora_fim", None))
+        if inicio and fim and fim <= inicio:
+            raise serializers.ValidationError("hora_fim tem de ser posterior a hora_inicio.")
+        capacidade = data.get("capacidade", getattr(self.instance, "capacidade", 1))
+        if capacidade < 1:
+            raise serializers.ValidationError("capacidade tem de ser pelo menos 1.")
+        if self.instance and capacidade < self.instance.vagas_ocupadas:
+            raise serializers.ValidationError("capacidade nao pode ser inferior as vagas ja ocupadas.")
+        return data
