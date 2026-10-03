@@ -155,14 +155,40 @@ class Avaliacao(models.Model):
 class Pagamento(models.Model):
     class EstadoPagamento(models.TextChoices):
         PENDENTE = "pendente", "Pendente"
-        CONCLUIDO = "concluido", "Concluído"
-        FALHADO = "falhado", "Falhado"
+        APROVADO = "aprovado", "Aprovado"  # pago pelo aluno, retido pela plataforma
+        RECUSADO = "recusado", "Recusado"
+        LIBERTADO = "libertado", "Libertado"  # entregue ao PT (BR-03)
+        REEMBOLSADO = "reembolsado", "Reembolsado"
+
+    TRANSICOES = {
+        EstadoPagamento.PENDENTE: {EstadoPagamento.APROVADO, EstadoPagamento.RECUSADO},
+        EstadoPagamento.APROVADO: {EstadoPagamento.LIBERTADO, EstadoPagamento.REEMBOLSADO},
+        EstadoPagamento.RECUSADO: set(),
+        EstadoPagamento.LIBERTADO: set(),
+        EstadoPagamento.REEMBOLSADO: set(),
+    }
 
     sessao = models.ForeignKey(Sessao, on_delete=models.CASCADE, related_name="pagamentos", null=True, blank=True)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
+    comissao_plataforma = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # BR-06
+    valor_liquido_pt = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     estado = models.CharField(max_length=20, choices=EstadoPagamento.choices, default=EstadoPagamento.PENDENTE)
     referencia_multicaixa = models.CharField(max_length=255, blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
+    data_aprovacao = models.DateTimeField(null=True, blank=True)
+    data_libertacao = models.DateTimeField(null=True, blank=True)
+
+    def pode_transitar(self, novo_estado):
+        return novo_estado in self.TRANSICOES[self.estado]
+
+    def transitar(self, novo_estado, **campos):
+        """Muda o estado respeitando a maquina de estados; `campos` sao gravados na mesma operacao."""
+        if not self.pode_transitar(novo_estado):
+            raise TransicaoInvalida(f"Pagamento nao pode passar de '{self.estado}' para '{novo_estado}'.")
+        self.estado = novo_estado
+        for nome, valor in campos.items():
+            setattr(self, nome, valor)
+        self.save(update_fields=["estado", *campos])
 
     def __str__(self):
         return f"Pagamento {self.id} - {self.estado}"

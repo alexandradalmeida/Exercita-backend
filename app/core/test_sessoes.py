@@ -1,7 +1,11 @@
+from decimal import Decimal
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.utils import timezone
 
-from .models import PersonalTrainer, Sessao, TransicaoInvalida, Utilizador, UtilizadorAluno
+from .models import Pagamento, PersonalTrainer, Sessao, TransicaoInvalida, Utilizador, UtilizadorAluno
+from .services.pagamentos import calcular_comissao
 from .test_marketplace import criar_pt
 
 E = Sessao.EstadoSessao
@@ -46,3 +50,48 @@ class MaquinaEstadosSessaoTestCase(TestCase):
 
     def test_janela_cancelamento_por_omissao(self):
         self.assertEqual(self.sessao.personal_trainer.janela_cancelamento_horas, 24)
+
+
+class MaquinaEstadosPagamentoTestCase(TestCase):
+    def setUp(self):
+        self.P = Pagamento
+        self.pag = Pagamento.objects.create(valor=Decimal("1000"))
+
+    def test_aprovado_e_libertado(self):
+        self.pag.transitar(self.P.EstadoPagamento.APROVADO)
+        self.pag.transitar(self.P.EstadoPagamento.LIBERTADO)
+        self.assertEqual(self.pag.estado, "libertado")
+
+    def test_aprovado_pode_ser_reembolsado(self):
+        self.pag.transitar(self.P.EstadoPagamento.APROVADO)
+        self.pag.transitar(self.P.EstadoPagamento.REEMBOLSADO)
+
+    def test_transicoes_invalidas(self):
+        for destino in ("libertado", "reembolsado"):
+            with self.assertRaises(TransicaoInvalida):
+                self.pag.transitar(destino)
+        self.pag.transitar("recusado")
+        with self.assertRaises(TransicaoInvalida):
+            self.pag.transitar("aprovado")
+
+    def test_transitar_grava_campos_extra(self):
+        agora = timezone.now()
+        self.pag.transitar("aprovado", data_aprovacao=agora)
+        self.pag.refresh_from_db()
+        self.assertEqual(self.pag.data_aprovacao, agora)
+
+
+class ComissaoTestCase(TestCase):
+    def test_comissao_por_omissao_15_por_cento(self):
+        comissao, liquido = calcular_comissao("5000")
+        self.assertEqual(comissao, Decimal("750.00"))
+        self.assertEqual(liquido, Decimal("4250.00"))
+
+    def test_arredondamento_e_soma_exata(self):
+        comissao, liquido = calcular_comissao("33.33")
+        self.assertEqual(comissao, Decimal("5.00"))
+        self.assertEqual(comissao + liquido, Decimal("33.33"))
+
+    @patch("core.services.pagamentos.config", return_value="10")
+    def test_percentagem_configuravel(self, _):
+        self.assertEqual(calcular_comissao("200")[0], Decimal("20.00"))
