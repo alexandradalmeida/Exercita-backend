@@ -142,3 +142,56 @@ class PesquisaTrainersTestCase(TestCase):
 
     def test_exige_autenticacao(self):
         self.assertEqual(APIClient().get(self.url).status_code, 401)
+
+
+class PerfilPublicoTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.aluno = Utilizador.objects.create_user(username="ver", password="SenhaForte123!", tipo="aluno", is_active=True)
+        self.client.force_authenticate(self.aluno)
+        self.pt = criar_pt("pub", especialidade="Pilates", preco_hora=4000)
+        Certificacao.objects.create(personal_trainer=self.pt, nome="Pilates Mat")
+
+    def test_perfil_publico_com_certificacoes_e_avaliacoes(self):
+        criar_avaliacao(self.pt, 5)
+        r = self.client.get(f"/api/v1/trainers/{self.pt.id}/profile/")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(r.data["certificacoes"][0]["nome"], "Pilates Mat")
+        self.assertEqual(r.data["avaliacao_media"], 5.0)
+        self.assertEqual(len(r.data["avaliacoes"]), 1)
+        self.assertNotIn("telefone", r.data)
+        self.assertNotIn("email", r.data)
+
+    def test_avaliacao_de_sessao_nao_realizada_nao_conta(self):
+        av = criar_avaliacao(self.pt, 1)
+        av.sessao.estado = "cancelada"
+        av.sessao.save()
+        r = self.client.get(f"/api/v1/trainers/{self.pt.id}/profile/")
+        self.assertEqual(r.data["avaliacoes"], [])
+        self.assertIsNone(r.data["avaliacao_media"])
+
+    def test_pt_nao_verificado_nao_tem_perfil_publico(self):
+        nv = criar_pt("nv2", verificado=False)
+        self.assertEqual(self.client.get(f"/api/v1/trainers/{nv.id}/profile/").status_code, 404)
+
+    def test_put_so_no_proprio_perfil(self):
+        r = self.client.put(f"/api/v1/trainers/{self.pt.id}/profile/", {"telefone": "1", "biografia": "x"}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_put_proprio_perfil(self):
+        self.client.force_authenticate(self.pt.utilizador)
+        r = self.client.put(f"/api/v1/trainers/{self.pt.id}/profile/",
+                            {"telefone": "923", "biografia": "Nova bio", "localizacao": "Luanda"}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.pt.refresh_from_db()
+        self.assertEqual(self.pt.localizacao, "Luanda")
+
+    def test_disponibilidade(self):
+        SlotDisponibilidade.objects.create(personal_trainer=self.pt, dia_semana=3, hora_inicio=time(7), hora_fim=time(8), capacidade=2, vagas_ocupadas=1)
+        r = self.client.get(f"/api/v1/trainers/{self.pt.id}/availability/")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(r.data[0]["vagas_disponiveis"], 1)
+
+    def test_disponibilidade_de_nao_verificado_404(self):
+        nv = criar_pt("nv3", verificado=False)
+        self.assertEqual(self.client.get(f"/api/v1/trainers/{nv.id}/availability/").status_code, 404)

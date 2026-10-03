@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
-from .models import Certificacao, PersonalTrainer, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, PersonalTrainer, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -140,3 +140,34 @@ class TrainerListaSerializer(serializers.ModelSerializer):
     def get_lotacao_atingida(self, obj):
         # sem slots publicados nao ha lotacao, apenas ausencia de horarios
         return obj.total_slots > 0 and obj.capacidade_total - obj.ocupadas_total <= 0
+
+class AvaliacaoPublicaSerializer(serializers.ModelSerializer):
+    aluno = serializers.CharField(source="sessao.aluno.utilizador.username", read_only=True)
+
+    class Meta:
+        model = Avaliacao
+        fields = ["id", "aluno", "classificacao", "comentario", "data_criacao"]
+
+
+class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
+    """UC-06: perfil publico com certificacoes e avaliacoes verificadas
+    (apenas avaliacoes de sessoes realizadas)."""
+    username = serializers.CharField(source="utilizador.username", read_only=True)
+    certificacoes = CertificacaoSerializer(many=True, read_only=True)
+    avaliacao_media = serializers.FloatField(read_only=True)
+    total_avaliacoes = serializers.IntegerField(read_only=True)
+    avaliacoes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PersonalTrainer
+        fields = [
+            "id", "username", "especialidade", "localizacao", "biografia", "preco_hora",
+            "modalidades_pagamento", "certificacoes", "avaliacao_media", "total_avaliacoes", "avaliacoes",
+        ]
+
+    def get_avaliacoes(self, obj):
+        qs = (
+            Avaliacao.objects.filter(sessao__personal_trainer=obj, sessao__estado="realizada")
+            .select_related("sessao__aluno__utilizador").order_by("-data_criacao")[:20]
+        )
+        return AvaliacaoPublicaSerializer(qs, many=True).data

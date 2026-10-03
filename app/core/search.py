@@ -8,7 +8,7 @@ def pesquisar_trainers(params):
     """Pesquisa de PTs verificados com filtros (UC-05). `params` e um QueryDict/dict.
     Os agregados usam subqueries para nao multiplicar linhas entre relacoes diferentes."""
     avaliacoes = (
-        Avaliacao.objects.filter(sessao__personal_trainer=OuterRef("pk"))
+        Avaliacao.objects.filter(sessao__personal_trainer=OuterRef("pk"), sessao__estado="realizada")
         .values("sessao__personal_trainer")
     )
     slots = SlotDisponibilidade.objects.filter(personal_trainer=OuterRef("pk")).values("personal_trainer")
