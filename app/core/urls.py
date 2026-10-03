@@ -5,6 +5,7 @@ from .views import (
     MeuPerfilAlunoView, MeuPerfilPersonalTrainerView,
     VerificarPersonalTrainerView,
     GoogleLoginView, GoogleCallbackView,
+    AppleLoginView,
 )
 
 urlpatterns = [
@@ -13,6 +14,7 @@ urlpatterns = [
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/google/", GoogleLoginView.as_view(), name="google_login"),
     path("auth/google/callback/", GoogleCallbackView.as_view(), name="google_callback"),
+    path("auth/apple/", AppleLoginView.as_view(), name="apple_login"),
     path("users/", RegistoView.as_view(), name="registo"),
     path("users/confirm-email/", ConfirmarEmailView.as_view(), name="confirmar_email"),
     path("perfil/aluno/", MeuPerfilAlunoView.as_view(), name="perfil_aluno"),

@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import PersonalTrainer, Utilizador, UtilizadorAluno
+from .services.apple import AppleTokenInvalido, validar_id_token_apple
 from .serializers import (
     LoginSerializer,
     PersonalTrainerSerializer,
@@ -224,6 +225,53 @@ class GoogleCallbackView(APIView):
         )
 
         if criado and utilizador.tipo == Utilizador.TipoUtilizador.ALUNO:
+            UtilizadorAluno.objects.create(utilizador=utilizador)
+
+        refresh = RefreshToken.for_user(utilizador)
+
+        return Response({
+            "session_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
+            "novo_utilizador": criado,
+            "utilizador": {
+                "id": utilizador.id,
+                "username": utilizador.username,
+                "email": utilizador.email,
+                "tipo": utilizador.tipo,
+            }
+        }, status=status.HTTP_200_OK)
+
+class AppleLoginView(APIView):
+    """Recebe o id_token obtido pela app com Sign in with Apple, valida-o contra
+    as chaves publicas da Apple e cria/autentica o utilizador."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        raw_id_token = request.data.get("id_token")
+        if not raw_id_token:
+            return Response({"mensagem": "id_token e obrigatorio."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            claims = validar_id_token_apple(raw_id_token)
+        except AppleTokenInvalido as e:
+            return Response({"mensagem": "id_token invalido.", "detalhe": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = claims.get("email")
+        if not email:
+            return Response({"mensagem": "Email nao disponivel no id_token."}, status=status.HTTP_400_BAD_REQUEST)
+        if str(claims.get("email_verified")).lower() != "true":
+            return Response({"mensagem": "Email nao verificado pela Apple."}, status=status.HTTP_400_BAD_REQUEST)
+
+        utilizador, criado = Utilizador.objects.get_or_create(
+            email=email,
+            defaults={
+                "username": email.split("@")[0],
+                "tipo": Utilizador.TipoUtilizador.ALUNO,
+                "is_active": True,  # email ja verificado pela Apple
+            }
+        )
+
+        if criado:
             UtilizadorAluno.objects.create(utilizador=utilizador)
 
         refresh = RefreshToken.for_user(utilizador)

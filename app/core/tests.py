@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
+from .services.apple import AppleTokenInvalido
 from .permissions import IsPersonalTrainerVerificado
 from .models import Utilizador, UtilizadorAluno, PersonalTrainer
 
@@ -242,3 +243,80 @@ class BR01PublicacaoTestCase(TestCase):
         self.pt.save()
         request = type("R", (), {"user": Utilizador.objects.get(pk=self.utilizador.pk)})()
         self.assertTrue(IsPersonalTrainerVerificado().has_permission(request, None))
+
+
+class AppleLoginTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @patch("core.views.validar_id_token_apple")
+    def test_cria_utilizador_novo(self, mock_validar):
+        mock_validar.return_value = {"email": "apple@example.com", "email_verified": "true"}
+        response = self.client.post("/api/v1/auth/apple/", {"id_token": "fake"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["novo_utilizador"])
+        self.assertIn("session_token", response.data)
+        utilizador = Utilizador.objects.get(email="apple@example.com")
+        self.assertTrue(utilizador.is_active)
+        self.assertTrue(UtilizadorAluno.objects.filter(utilizador=utilizador).exists())
+
+    @patch("core.views.validar_id_token_apple")
+    def test_reutiliza_utilizador_existente(self, mock_validar):
+        Utilizador.objects.create_user(username="x", email="apple@example.com", password="SenhaForte123!", tipo="aluno")
+        mock_validar.return_value = {"email": "apple@example.com", "email_verified": True}
+        response = self.client.post("/api/v1/auth/apple/", {"id_token": "fake"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["novo_utilizador"])
+
+    def test_sem_id_token_falha(self):
+        response = self.client.post("/api/v1/auth/apple/", {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("core.views.validar_id_token_apple", side_effect=AppleTokenInvalido("assinatura invalida"))
+    def test_token_invalido_falha(self, _):
+        response = self.client.post("/api/v1/auth/apple/", {"id_token": "fake"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("core.views.validar_id_token_apple")
+    def test_email_nao_verificado_falha(self, mock_validar):
+        mock_validar.return_value = {"email": "apple@example.com", "email_verified": "false"}
+        response = self.client.post("/api/v1/auth/apple/", {"id_token": "fake"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ValidarIdTokenAppleTestCase(TestCase):
+    """Testa a validacao real do JWT com um par de chaves RSA local (sem rede)."""
+
+    def setUp(self):
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        self.chave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    def _token(self, **extra):
+        import time
+        import jwt
+        claims = {"iss": "https://appleid.apple.com", "aud": "com.exemplo.exercita",
+                  "exp": int(time.time()) + 300, "email": "a@b.com"}
+        claims.update(extra)
+        return jwt.encode(claims, self.chave, algorithm="RS256")
+
+    def _validar(self, token):
+        from core.services import apple
+        with patch.dict("os.environ", {"APPLE_CLIENT_ID": "com.exemplo.exercita"}), \
+                patch.object(apple._jwks_client, "get_signing_key_from_jwt") as mock_key:
+            mock_key.return_value.key = self.chave.public_key()
+            return apple.validar_id_token_apple(token)
+
+    def test_token_valido(self):
+        self.assertEqual(self._validar(self._token())["email"], "a@b.com")
+
+    def test_audience_errada(self):
+        with self.assertRaises(AppleTokenInvalido):
+            self._validar(self._token(aud="outra.app"))
+
+    def test_issuer_errado(self):
+        with self.assertRaises(AppleTokenInvalido):
+            self._validar(self._token(iss="https://evil.example.com"))
+
+    def test_token_expirado(self):
+        with self.assertRaises(AppleTokenInvalido):
+            self._validar(self._token(exp=1))
