@@ -78,3 +78,67 @@ class SlotsTestCase(TestCase):
             personal_trainer=self.pt, dia_semana=2, hora_inicio=time(8), hora_fim=time(9), capacidade=3, vagas_ocupadas=2)
         r = self.client.patch(f"{self.url}{slot.id}/", {"capacidade": 1}, format="json")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+
+def criar_avaliacao(pt, nota, n=[0]):
+    from django.utils import timezone
+    from .models import Avaliacao, Sessao, UtilizadorAluno
+    n[0] += 1
+    u = Utilizador.objects.create_user(username=f"aluno{n[0]}", password="SenhaForte123!", tipo="aluno", is_active=True)
+    aluno = UtilizadorAluno.objects.create(utilizador=u)
+    sessao = Sessao.objects.create(aluno=aluno, personal_trainer=pt, data_hora=timezone.now(), estado="realizada")
+    return Avaliacao.objects.create(sessao=sessao, classificacao=nota, comentario="ok")
+
+
+class PesquisaTrainersTestCase(TestCase):
+    url = "/api/v1/trainers/"
+
+    def setUp(self):
+        self.client = APIClient()
+        self.aluno = Utilizador.objects.create_user(username="procura", password="SenhaForte123!", tipo="aluno", is_active=True)
+        self.client.force_authenticate(self.aluno)
+        self.a = criar_pt("a", especialidade="Musculacao", localizacao="Luanda",
+                          preco_hora=5000, modalidades_pagamento=["multicaixa"])
+        self.b = criar_pt("b", especialidade="Yoga", localizacao="Benguela",
+                          preco_hora=3000, modalidades_pagamento=["dinheiro"])
+        self.nv = criar_pt("nv", verificado=False, especialidade="Musculacao", localizacao="Luanda")
+
+    def ids(self, **params):
+        r = self.client.get(self.url, params)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        return {x["id"] for x in r.data["results"]}
+
+    def test_so_lista_verificados(self):
+        self.assertEqual(self.ids(), {self.a.id, self.b.id})
+
+    def test_filtros_especialidade_localizacao_modalidade(self):
+        self.assertEqual(self.ids(especialidade="yoga"), {self.b.id})
+        self.assertEqual(self.ids(localizacao="luanda"), {self.a.id})
+        self.assertEqual(self.ids(modalidade_pagamento="dinheiro"), {self.b.id})
+
+    def test_avaliacao_minima(self):
+        criar_avaliacao(self.a, 5)
+        criar_avaliacao(self.a, 4)
+        criar_avaliacao(self.b, 2)
+        self.assertEqual(self.ids(avaliacao_minima="4"), {self.a.id})
+        r = self.client.get(self.url, {"especialidade": "musc"})
+        self.assertEqual(r.data["results"][0]["avaliacao_media"], 4.5)
+        self.assertEqual(r.data["results"][0]["total_avaliacoes"], 2)
+
+    def test_vagas_e_lotacao(self):
+        SlotDisponibilidade.objects.create(personal_trainer=self.a, dia_semana=0, hora_inicio=time(8), hora_fim=time(9), capacidade=2, vagas_ocupadas=2)
+        SlotDisponibilidade.objects.create(personal_trainer=self.b, dia_semana=1, hora_inicio=time(8), hora_fim=time(9), capacidade=3, vagas_ocupadas=1)
+        SlotDisponibilidade.objects.create(personal_trainer=self.b, dia_semana=2, hora_inicio=time(8), hora_fim=time(9), capacidade=1)
+        r = {x["id"]: x for x in self.client.get(self.url).data["results"]}
+        self.assertTrue(r[self.a.id]["lotacao_atingida"])
+        self.assertEqual(r[self.a.id]["vagas_disponiveis"], 0)
+        self.assertFalse(r[self.b.id]["lotacao_atingida"])
+        self.assertEqual(r[self.b.id]["vagas_disponiveis"], 3)  # 4 - 1 ocupada
+        self.assertEqual(self.ids(com_vagas="true"), {self.b.id})
+        self.assertEqual(self.ids(dia_semana="0"), set())
+        self.assertEqual(self.ids(dia_semana="1"), {self.b.id})
+
+    def test_parametro_invalido(self):
+        self.assertEqual(self.client.get(self.url, {"avaliacao_minima": "abc"}).status_code, 400)
+
+    def test_exige_autenticacao(self):
+        self.assertEqual(APIClient().get(self.url).status_code, 401)

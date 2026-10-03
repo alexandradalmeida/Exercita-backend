@@ -47,6 +47,7 @@ class PersonalTrainer(models.Model):
         default=EstadoVerificacao.PENDENTE
     )
     especialidade = models.CharField(max_length=255, blank=True)
+    localizacao = models.CharField(max_length=255, blank=True)
     biografia = models.TextField(blank=True)
     preco_hora = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     modalidades_pagamento = ArrayField(

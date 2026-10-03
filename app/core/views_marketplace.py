@@ -1,8 +1,10 @@
-from rest_framework import viewsets
+from rest_framework import generics, viewsets
+from rest_framework.exceptions import ValidationError
 
 from .models import Certificacao, SlotDisponibilidade
 from .permissions import IsPersonalTrainerVerificado
-from .serializers import CertificacaoSerializer, SlotDisponibilidadeSerializer
+from .search import pesquisar_trainers
+from .serializers import CertificacaoSerializer, SlotDisponibilidadeSerializer, TrainerListaSerializer
 
 
 class _RecursoDoMeuPTViewSet(viewsets.ModelViewSet):
@@ -25,3 +27,14 @@ class CertificacaoViewSet(_RecursoDoMeuPTViewSet):
 class SlotDisponibilidadeViewSet(_RecursoDoMeuPTViewSet):
     queryset = SlotDisponibilidade.objects.all().order_by("dia_semana", "hora_inicio")
     serializer_class = SlotDisponibilidadeSerializer
+
+class TrainerListView(generics.ListAPIView):
+    """GET /api/v1/trainers/ - pesquisa com filtros: especialidade, localizacao,
+    modalidade_pagamento, dia_semana, com_vagas, avaliacao_minima."""
+    serializer_class = TrainerListaSerializer
+
+    def get_queryset(self):
+        try:
+            return pesquisar_trainers(self.request.query_params)
+        except ValueError:
+            raise ValidationError("avaliacao_minima e dia_semana tem de ser numericos.")

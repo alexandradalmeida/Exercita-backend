@@ -68,7 +68,7 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
         model = PersonalTrainer
         fields = [
             "id", "username", "email", "telefone",
-            "estado_verificacao", "especialidade", "biografia",
+            "estado_verificacao", "especialidade", "localizacao", "biografia",
             "preco_hora", "modalidades_pagamento",
         ]
         read_only_fields = ["estado_verificacao"]  # só muda via processo de verificação, não pelo próprio PT
@@ -118,3 +118,25 @@ class SlotDisponibilidadeSerializer(serializers.ModelSerializer):
         if self.instance and capacidade < self.instance.vagas_ocupadas:
             raise serializers.ValidationError("capacidade nao pode ser inferior as vagas ja ocupadas.")
         return data
+
+class TrainerListaSerializer(serializers.ModelSerializer):
+    """Resultado da pesquisa: dados publicos + disponibilidade (vagas vs lotacao)."""
+    username = serializers.CharField(source="utilizador.username", read_only=True)
+    avaliacao_media = serializers.FloatField(read_only=True)
+    total_avaliacoes = serializers.IntegerField(read_only=True)
+    vagas_disponiveis = serializers.SerializerMethodField()
+    lotacao_atingida = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PersonalTrainer
+        fields = [
+            "id", "username", "especialidade", "localizacao", "preco_hora", "modalidades_pagamento",
+            "avaliacao_media", "total_avaliacoes", "vagas_disponiveis", "lotacao_atingida",
+        ]
+
+    def get_vagas_disponiveis(self, obj):
+        return max(obj.capacidade_total - obj.ocupadas_total, 0)
+
+    def get_lotacao_atingida(self, obj):
+        # sem slots publicados nao ha lotacao, apenas ausencia de horarios
+        return obj.total_slots > 0 and obj.capacidade_total - obj.ocupadas_total <= 0
