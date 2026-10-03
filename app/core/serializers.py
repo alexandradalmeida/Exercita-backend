@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Ginasio, Nutricionista, PlanoNutricional, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -338,3 +338,57 @@ class NutricionistaSerializer(serializers.ModelSerializer):
             instance.utilizador.telefone = utilizador_data["telefone"]
             instance.utilizador.save()
         return super().update(instance, validated_data)
+
+
+class RefeicaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Refeicao
+        fields = ["id", "nome", "dia_semana", "hora", "descricao", "calorias",
+                  "proteinas_g", "carboidratos_g", "gorduras_g"]
+
+
+class PlanoNutricionalSerializer(serializers.ModelSerializer):
+    refeicoes = RefeicaoSerializer(many=True, required=False)
+    aluno_id = serializers.PrimaryKeyRelatedField(
+        source="aluno", queryset=UtilizadorAluno.objects.all(), required=False)
+    nutricionista_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = PlanoNutricional
+        fields = ["id", "aluno_id", "nutricionista_id", "titulo", "descricao", "calorias_diarias",
+                  "ativo", "data_criacao", "refeicoes"]
+        read_only_fields = ["id", "nutricionista_id", "data_criacao"]
+
+    def validate(self, data):
+        if self.instance is None and "aluno" not in data:
+            raise serializers.ValidationError({"aluno_id": "Indique o aluno do plano."})
+        if self.instance is not None and "aluno" in data and data["aluno"] != self.instance.aluno:
+            raise serializers.ValidationError({"aluno_id": "Nao e possivel mudar o aluno de um plano."})
+        return data
+
+    def create(self, validated_data):
+        refeicoes = validated_data.pop("refeicoes", [])
+        plano = PlanoNutricional.objects.create(**validated_data)
+        Refeicao.objects.bulk_create([Refeicao(plano=plano, **r) for r in refeicoes])
+        return plano
+
+    def update(self, instance, validated_data):
+        validated_data.pop("aluno", None)
+        refeicoes = validated_data.pop("refeicoes", None)
+        instance = super().update(instance, validated_data)
+        if refeicoes is not None:  # substitui o conjunto de refeicoes
+            instance.refeicoes.all().delete()
+            Refeicao.objects.bulk_create([Refeicao(plano=instance, **r) for r in refeicoes])
+        return instance
+
+
+class RegistoRefeicaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegistoRefeicao
+        fields = ["id", "refeicao", "data", "descricao", "calorias", "notas"]
+
+    def validate_refeicao(self, refeicao):
+        aluno = self.context["request"].user.perfil_aluno
+        if refeicao is not None and refeicao.plano.aluno_id != aluno.id:
+            raise serializers.ValidationError("Essa refeicao nao pertence a um plano seu.")
+        return refeicao

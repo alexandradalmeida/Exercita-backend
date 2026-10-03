@@ -228,13 +228,45 @@ class Pagamento(models.Model):
 
 class PlanoNutricional(models.Model):
     aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="planos_nutricionais")
-    personal_trainer = models.ForeignKey(PersonalTrainer, on_delete=models.SET_NULL, null=True, blank=True)
+    nutricionista = models.ForeignKey(
+        "Nutricionista", on_delete=models.SET_NULL, null=True, blank=True, related_name="planos")
     titulo = models.CharField(max_length=255)
     descricao = models.TextField(blank=True)
+    calorias_diarias = models.PositiveIntegerField(null=True, blank=True)
+    ativo = models.BooleanField(default=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.titulo
+
+
+class Refeicao(models.Model):
+    """Refeicao prevista num plano nutricional. `dia_semana` vazio = todos os dias."""
+    plano = models.ForeignKey(PlanoNutricional, on_delete=models.CASCADE, related_name="refeicoes")
+    nome = models.CharField(max_length=100)  # ex.: pequeno-almoco
+    dia_semana = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MaxValueValidator(6)])
+    hora = models.TimeField(null=True, blank=True)
+    descricao = models.TextField(blank=True)
+    calorias = models.PositiveIntegerField(default=0)
+    proteinas_g = models.DecimalField(max_digits=6, decimal_places=1, default=0)
+    carboidratos_g = models.DecimalField(max_digits=6, decimal_places=1, default=0)
+    gorduras_g = models.DecimalField(max_digits=6, decimal_places=1, default=0)
+
+    def __str__(self):
+        return f"{self.nome} ({self.plano_id})"
+
+
+class RegistoRefeicao(models.Model):
+    """Registo diario feito pelo aluno do que comeu (UC-11)."""
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="registos_refeicao")
+    refeicao = models.ForeignKey(Refeicao, on_delete=models.SET_NULL, null=True, blank=True, related_name="registos")
+    data = models.DateField()
+    descricao = models.CharField(max_length=255)
+    calorias = models.PositiveIntegerField(default=0)
+    notas = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.aluno_id} {self.data} {self.descricao}"
 
 
 class Produto(models.Model):

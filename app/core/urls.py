@@ -3,7 +3,9 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
-from .views_nutricao import MeuPerfilNutricionistaView, VerificarNutricionistaView
+from .views_nutricao import (
+    MeuPerfilNutricionistaView, PlanoNutricionalViewSet, RegistoRefeicaoViewSet, VerificarNutricionistaView,
+)
 from .views_reservas import MinhasReservasView, ReservaDetalheView, ReservarGinasioView
 from .views_ginasios_trainers import GinasioTrainerDetalheView, GinasioTrainersView
 from .views_sessoes import (
@@ -22,6 +24,8 @@ router = SimpleRouter()
 router.register("perfil/personal-trainer/certificacoes", CertificacaoViewSet, basename="certificacao")
 router.register("perfil/personal-trainer/slots", SlotDisponibilidadeViewSet, basename="slot")
 router.register("gyms", GinasioViewSet, basename="ginasio")
+router.register("nutrition/plans", PlanoNutricionalViewSet, basename="plano_nutricional")
+router.register("nutrition/logs", RegistoRefeicaoViewSet, basename="registo_refeicao")
 
 urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
