@@ -130,3 +130,13 @@ def enviar_lembretes(agora=None, antecedencia_horas=24):
 def nova_avaliacao(avaliacao):
     notificar(avaliacao.avaliado,
               f"{avaliacao.autor.username} avaliou a sessao com {avaliacao.classificacao}/5.", "Nova avaliacao")
+
+
+def estado_qualidade_alterado(pt, media):
+    mensagens = {
+        "em_alerta": f"O seu perfil entrou em alerta: a media das avaliacoes ({media}) esta abaixo do limiar de qualidade.",
+        "suspenso": f"O seu perfil foi suspenso: a media das avaliacoes ({media}) esta abaixo do limiar minimo. "
+                    "Contacte a administracao.",
+        "verificado": "O seu perfil esta verificado e ativo.",
+    }
+    notificar(pt.utilizador, mensagens[pt.estado_verificacao], "Estado do seu perfil")

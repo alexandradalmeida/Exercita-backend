@@ -31,7 +31,7 @@ def _validar_slot_e_data(slot, data_hora):
 @transaction.atomic
 def contratar_personal_trainer(aluno, pt, slot, data_hora, modalidade, quantidade_sessoes=1):
     """UC-07: cria a sessao (estado Agendada) e o pagamento pendente, reservando uma vaga do slot."""
-    if pt.estado_verificacao != PersonalTrainer.EstadoVerificacao.VERIFICADO:
+    if pt.estado_verificacao not in PersonalTrainer.ESTADOS_ATIVOS:
         raise ErroNegocio("Personal Trainer nao disponivel.", 404)
     if pt.preco_hora is None:
         raise ErroNegocio("Este Personal Trainer ainda nao definiu preco.")

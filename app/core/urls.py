@@ -9,7 +9,7 @@ from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet, 
 from .views import (
     RegistoView, ConfirmarEmailView, LoginView, LogoutView,
     MeuPerfilAlunoView, MeuPerfilPersonalTrainerView,
-    VerificarPersonalTrainerView,
+    VerificarPersonalTrainerView, ReativarPersonalTrainerView,
     GoogleLoginView, GoogleCallbackView,
     AppleLoginView,
 )
@@ -30,6 +30,7 @@ urlpatterns = [
     path("perfil/aluno/", MeuPerfilAlunoView.as_view(), name="perfil_aluno"),
     path("perfil/personal-trainer/", MeuPerfilPersonalTrainerView.as_view(), name="perfil_pt"),
     path("personal-trainers/<int:pk>/verificar/", VerificarPersonalTrainerView.as_view(), name="verificar_pt"),
+    path("personal-trainers/<int:pk>/reativar/", ReativarPersonalTrainerView.as_view(), name="reativar_pt"),
     path("trainers/", TrainerListView.as_view(), name="trainers"),
     path("trainers/<int:pk>/profile/", TrainerPerfilView.as_view(), name="trainer_profile"),
     path("trainers/<int:pk>/availability/", TrainerDisponibilidadeView.as_view(), name="trainer_availability"),

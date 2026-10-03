@@ -12,7 +12,7 @@ class IsPersonalTrainerVerificado(BasePermission):
         if not user or not user.is_authenticated:
             return False
         pt = getattr(user, "perfil_personal_trainer", None)
-        return pt is not None and pt.estado_verificacao == PersonalTrainer.EstadoVerificacao.VERIFICADO
+        return pt is not None and pt.estado_verificacao in PersonalTrainer.ESTADOS_ATIVOS
 
 class IsAluno(BasePermission):
     message = "Apenas alunos podem usar esta funcionalidade."

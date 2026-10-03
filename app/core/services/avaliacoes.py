@@ -1,4 +1,8 @@
+from decimal import Decimal
+
+from decouple import config
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Avg, Count
 
 from ..models import Avaliacao, PersonalTrainer, Sessao
@@ -36,5 +40,62 @@ def avaliar_sessao(sessao, autor, classificacao, comentario=""):
     if avaliado.id == pt_u.id:
         pt = PersonalTrainer.objects.select_for_update().get(pk=sessao.personal_trainer_id)
         recalcular_reputacao(pt)
+        avaliar_qualidade(pt)
     notificacoes.nova_avaliacao(avaliacao)
     return avaliacao
+
+
+# --- BR-02: qualidade do PT (Verificado -> Em Alerta -> Suspenso) ---
+def limiar_alerta():
+    return Decimal(config("QUALITY_ALERT_THRESHOLD", default="4.0"))
+
+
+def limiar_suspensao():
+    return Decimal(config("QUALITY_SUSPEND_THRESHOLD", default="3.0"))
+
+
+def minimo_avaliacoes():
+    return int(config("QUALITY_MIN_REVIEWS", default="5"))
+
+
+@transaction.atomic
+def avaliar_qualidade(pt):
+    """Aplica a BR-02 ao PT. So atua com `minimo_avaliacoes()` avaliacoes (desde a ultima reativacao).
+    - media < limiar de suspensao  -> Suspenso (so o admin reativa)
+    - media < limiar de alerta     -> Em Alerta
+    - Em Alerta com media >= alerta -> volta a Verificado
+    Devolve o novo estado se mudou, ou None."""
+    E = PersonalTrainer.EstadoVerificacao
+    if pt.estado_verificacao not in PersonalTrainer.ESTADOS_ATIVOS:
+        return None  # pendente ou suspenso: nao ha transicao automatica
+    avaliacoes = Avaliacao.objects.filter(avaliado=pt.utilizador, sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
+    if pt.avaliacoes_desde:
+        avaliacoes = avaliacoes.filter(data_criacao__gte=pt.avaliacoes_desde)
+    agregado = avaliacoes.aggregate(media=Avg("classificacao"), total=Count("id"))
+    if agregado["total"] < minimo_avaliacoes():
+        return None
+    media = Decimal(str(agregado["media"]))
+
+    if media < limiar_suspensao():
+        novo = E.SUSPENSO
+    elif media < limiar_alerta():
+        novo = E.EM_ALERTA
+    else:
+        novo = E.VERIFICADO
+    if novo == pt.estado_verificacao:
+        return None
+    pt.estado_verificacao = novo
+    pt.save(update_fields=["estado_verificacao"])
+    notificacoes.estado_qualidade_alterado(pt, media)
+    return novo
+
+
+@transaction.atomic
+def reativar_trainer(pt):
+    """Admin: levanta a suspensao. O historico anterior deixa de contar para a BR-02."""
+    if pt.estado_verificacao != PersonalTrainer.EstadoVerificacao.SUSPENSO:
+        raise ErroNegocio("O Personal Trainer nao esta suspenso.", 409)
+    pt.estado_verificacao = PersonalTrainer.EstadoVerificacao.VERIFICADO
+    pt.avaliacoes_desde = timezone.now()
+    pt.save(update_fields=["estado_verificacao", "avaliacoes_desde"])
+    notificacoes.estado_qualidade_alterado(pt, None)

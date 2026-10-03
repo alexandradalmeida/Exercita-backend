@@ -91,7 +91,7 @@ class TrainerDisponibilidadeView(generics.ListAPIView):
     def get_queryset(self):
         pt = get_object_or_404(
             PersonalTrainer, pk=self.kwargs["pk"],
-            estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO,
+            estado_verificacao__in=PersonalTrainer.ESTADOS_ATIVOS,
         )
         return pt.slots_disponibilidade.order_by("dia_semana", "hora_inicio")
 
@@ -109,7 +109,7 @@ class FavoritosView(generics.ListAPIView):
         trainer_id = request.data.get("trainer_id")
         pt = PersonalTrainer.objects.filter(
             pk=trainer_id if str(trainer_id).isdigit() else None,
-            estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO,
+            estado_verificacao__in=PersonalTrainer.ESTADOS_ATIVOS,
         ).first()
         if pt is None:
             return Response({"mensagem": "Personal Trainer nao encontrado."}, status=status.HTTP_404_NOT_FOUND)

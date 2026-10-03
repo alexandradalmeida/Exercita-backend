@@ -18,6 +18,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import PersonalTrainer, Utilizador, UtilizadorAluno
 from .services.apple import AppleTokenInvalido, validar_id_token_apple
+from .services.avaliacoes import reativar_trainer
+from .services.sessoes import ErroNegocio
 from .serializers import (
     LoginSerializer,
     PersonalTrainerSerializer,
@@ -127,6 +129,8 @@ class VerificarPersonalTrainerView(APIView):
         except PersonalTrainer.DoesNotExist:
             return Response({"mensagem": "Personal Trainer nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
+        if pt.estado_verificacao == PersonalTrainer.EstadoVerificacao.SUSPENSO:
+            return Response({"mensagem": "Personal Trainer suspenso: use a reativacao."}, status=status.HTTP_409_CONFLICT)
         pt.estado_verificacao = PersonalTrainer.EstadoVerificacao.VERIFICADO
         pt.save()
 
@@ -287,3 +291,20 @@ class AppleLoginView(APIView):
                 "tipo": utilizador.tipo,
             }
         }, status=status.HTTP_200_OK)
+
+
+class ReativarPersonalTrainerView(APIView):
+    """POST /api/v1/personal-trainers/{id}/reativar/ - admin levanta uma suspensao (BR-02)."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            pt = PersonalTrainer.objects.get(pk=pk)
+        except PersonalTrainer.DoesNotExist:
+            return Response({"mensagem": "Personal Trainer nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            reativar_trainer(pt)
+        except ErroNegocio as erro:
+            return Response({"mensagem": erro.mensagem}, status=erro.codigo)
+        return Response({"mensagem": "Personal Trainer reativado.", "id": pt.id,
+                         "estado_verificacao": pt.estado_verificacao})

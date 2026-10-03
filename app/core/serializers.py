@@ -78,7 +78,7 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # BR-01: publicar preco/modalidades equivale a publicar o servico
         publica = "preco_hora" in data or "modalidades_pagamento" in data
-        if publica and self.instance and self.instance.estado_verificacao != PersonalTrainer.EstadoVerificacao.VERIFICADO:
+        if publica and self.instance and self.instance.estado_verificacao not in PersonalTrainer.ESTADOS_ATIVOS:
             raise serializers.ValidationError(
                 "So Personal Trainers verificados podem publicar preco e modalidades de pagamento."
             )

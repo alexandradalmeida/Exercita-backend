@@ -34,6 +34,11 @@ class PersonalTrainer(models.Model):
     class EstadoVerificacao(models.TextChoices):
         PENDENTE = "pendente", "Pendente de Verificação"
         VERIFICADO = "verificado", "Verificado"
+        EM_ALERTA = "em_alerta", "Em Alerta"  # BR-02: media abaixo do limiar de alerta
+        SUSPENSO = "suspenso", "Suspenso"  # BR-02: media abaixo do limiar de suspensao
+
+    # estados em que o PT esta visivel e pode trabalhar (Em Alerta e apenas um aviso)
+    ESTADOS_ATIVOS = ("verificado", "em_alerta")
 
     class ModalidadePagamento(models.TextChoices):
         MULTICAIXA = "multicaixa", "Multicaixa Express"
@@ -56,6 +61,8 @@ class PersonalTrainer(models.Model):
     # reputacao: media das avaliacoes recebidas (so de sessoes realizadas), recalculada a cada avaliacao
     classificacao_media = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
     total_avaliacoes = models.PositiveIntegerField(default=0)
+    # BR-02: so contam para a qualidade as avaliacoes posteriores a ultima reativacao pelo admin
+    avaliacoes_desde = models.DateTimeField(null=True, blank=True)
     modalidades_pagamento = ArrayField(
         models.CharField(max_length=20, choices=ModalidadePagamento.choices),
         blank=True, default=list,

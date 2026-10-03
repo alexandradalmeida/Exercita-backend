@@ -14,7 +14,7 @@ def pesquisar_trainers(params, gerador=None):
     slots = SlotDisponibilidade.objects.filter(personal_trainer=OuterRef("pk")).values("personal_trainer")
 
     qs = PersonalTrainer.objects.filter(
-        estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO
+        estado_verificacao__in=PersonalTrainer.ESTADOS_ATIVOS
     ).select_related("utilizador").annotate(
         avaliacao_media=Cast("classificacao_media", FloatField()),  # reputacao em cache (ver services.avaliacoes)
         total_slots=Coalesce(
