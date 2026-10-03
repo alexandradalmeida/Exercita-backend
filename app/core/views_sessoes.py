@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -9,6 +10,7 @@ from .permissions import IsAluno
 from .serializers import (
     AtualizarSessaoSerializer, ContratarSessaoSerializer, PagamentoSerializer, SessaoSerializer,
 )
+from .services.calendario import sessao_para_ics
 from .services.multicaixa import assinatura_valida
 from .services.pagamentos import PagamentoErro
 from .services.transacoes import iniciar_pagamento, libertar_pagamento, processar_callback
@@ -126,3 +128,20 @@ class LibertarPagamentoView(APIView):
         except PagamentoErro as erro:
             return Response({"mensagem": erro.mensagem}, status=erro.codigo)
         return Response(PagamentoSerializer(pagamento).data)
+
+
+class SessaoCalendarioView(APIView):
+    """GET /api/v1/sessions/{id}/calendar/ - ficheiro .ics para Google/Apple Calendar."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        qs = Sessao.objects.select_related("slot", "personal_trainer__utilizador")
+        if user.tipo == Utilizador.TipoUtilizador.ALUNO:
+            qs = qs.filter(aluno__utilizador=user)
+        else:
+            qs = qs.filter(personal_trainer__utilizador=user)
+        sessao = get_object_or_404(qs, pk=pk)
+        resposta = HttpResponse(sessao_para_ics(sessao), content_type="text/calendar; charset=utf-8")
+        resposta["Content-Disposition"] = f'attachment; filename="sessao-{sessao.pk}.ics"'
+        return resposta
