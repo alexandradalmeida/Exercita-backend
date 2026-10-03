@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
+from .services.embeddings import atualizar_embedding
 from .models import Avaliacao, Certificacao, PersonalTrainer, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
@@ -87,7 +88,9 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
         if "telefone" in utilizador_data:
             instance.utilizador.telefone = utilizador_data["telefone"]
             instance.utilizador.save()
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        atualizar_embedding(instance)  # mantem o matching por IA sincronizado com o perfil
+        return instance
 
 class CertificacaoSerializer(serializers.ModelSerializer):
     class Meta:

@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from .models import Certificacao, Favorito, PersonalTrainer, SlotDisponibilidade
 from .permissions import IsAluno, IsPersonalTrainerVerificado
 from .search import pesquisar_trainers
+from .services.embeddings import atualizar_embedding
 from .serializers import (
     CertificacaoSerializer,
     PersonalTrainerSerializer,
@@ -31,6 +32,19 @@ class _RecursoDoMeuPTViewSet(viewsets.ModelViewSet):
 class CertificacaoViewSet(_RecursoDoMeuPTViewSet):
     queryset = Certificacao.objects.all().order_by("id")
     serializer_class = CertificacaoSerializer
+
+    # as certificacoes entram no texto do embedding do PT
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        atualizar_embedding(self.request.user.perfil_personal_trainer)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        atualizar_embedding(self.request.user.perfil_personal_trainer)
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        atualizar_embedding(self.request.user.perfil_personal_trainer)
 
 
 class SlotDisponibilidadeViewSet(_RecursoDoMeuPTViewSet):

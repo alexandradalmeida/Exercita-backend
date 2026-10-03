@@ -241,3 +241,55 @@ class FavoritosTestCase(TestCase):
     def test_pt_nao_tem_favoritos(self):
         self.client.force_authenticate(self.pt.utilizador)
         self.assertEqual(self.client.get(self.url).status_code, 403)
+
+
+class MatchingEmbeddingsTestCase(TestCase):
+    url = "/api/v1/trainers/"
+
+    def setUp(self):
+        from .services.embeddings import HashEmbeddings, atualizar_embedding
+        self.client = APIClient()
+        self.client.force_authenticate(
+            Utilizador.objects.create_user(username="q", password="SenhaForte123!", tipo="aluno", is_active=True))
+        self.yoga = criar_pt("yoga", especialidade="yoga e meditacao", biografia="aulas de yoga para relaxar")
+        self.musc = criar_pt("musc", especialidade="musculacao", biografia="hipertrofia e forca no ginasio")
+        self.sem = criar_pt("sem")  # sem embedding
+        for pt in (self.yoga, self.musc):
+            atualizar_embedding(pt, HashEmbeddings())
+
+    def test_ordena_por_relevancia(self):
+        ids = [x["id"] for x in self.client.get(self.url, {"q": "quero fazer yoga"}).data["results"]]
+        self.assertEqual(ids[0], self.yoga.id)
+        ids = [x["id"] for x in self.client.get(self.url, {"q": "treino de forca hipertrofia"}).data["results"]]
+        self.assertEqual(ids[0], self.musc.id)
+
+    def test_sem_embedding_fica_no_fim(self):
+        ids = [x["id"] for x in self.client.get(self.url, {"q": "yoga"}).data["results"]]
+        self.assertEqual(ids[-1], self.sem.id)
+
+    def test_q_combina_com_filtros(self):
+        ids = [x["id"] for x in self.client.get(self.url, {"q": "yoga", "especialidade": "muscul"}).data["results"]]
+        self.assertEqual(ids, [self.musc.id])
+
+    def test_atualizar_perfil_regenera_embedding(self):
+        self.client.force_authenticate(self.sem.utilizador)
+        self.client.put(f"/api/v1/trainers/{self.sem.id}/profile/",
+                        {"telefone": "1", "biografia": "especialista em pilates"}, format="json")
+        self.sem.refresh_from_db()
+        self.assertIsNotNone(self.sem.embedding)
+
+    def test_falha_do_servico_externo_nao_quebra(self):
+        import requests
+        from unittest.mock import MagicMock
+        from .services.embeddings import atualizar_embedding
+        gerador = MagicMock()
+        gerador.gerar.side_effect = requests.ConnectionError()
+        self.assertFalse(atualizar_embedding(self.yoga, gerador))
+
+    def test_gerador_e_substituivel(self):
+        from unittest.mock import MagicMock
+        from .search import pesquisar_trainers
+        gerador = MagicMock()
+        gerador.gerar.return_value = [1.0] + [0.0] * 1535
+        list(pesquisar_trainers({"q": "x"}, gerador=gerador))
+        gerador.gerar.assert_called_once_with("x")

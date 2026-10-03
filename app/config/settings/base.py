@@ -9,8 +9,18 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+import os
+import sys
+
 from decouple import config
 from pathlib import Path
+
+# nos testes: embeddings locais (sem rede) e hash de passwords rapido
+if "test" in sys.argv:
+    os.environ["EMBEDDINGS_BACKEND"] = "hash"
+    TEST_RUN = True
+else:
+    TEST_RUN = False
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -147,3 +157,5 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
 }
+if TEST_RUN:
+    PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']

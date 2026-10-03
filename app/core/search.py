@@ -1,11 +1,15 @@
-from django.db.models import Avg, Count, FloatField, IntegerField, OuterRef, Subquery, Sum
+from django.db.models import Avg, Count, F, FloatField, IntegerField, OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
 
+from pgvector.django import CosineDistance
+
 from .models import Avaliacao, PersonalTrainer, SlotDisponibilidade
+from .services.embeddings import obter_gerador
 
 
-def pesquisar_trainers(params):
+def pesquisar_trainers(params, gerador=None):
     """Pesquisa de PTs verificados com filtros (UC-05). `params` e um QueryDict/dict.
+    Com `q`, ordena por relevancia (matching por embeddings, distancia do cosseno).
     Os agregados usam subqueries para nao multiplicar linhas entre relacoes diferentes."""
     avaliacoes = (
         Avaliacao.objects.filter(sessao__personal_trainer=OuterRef("pk"), sessao__estado="realizada")
@@ -39,10 +43,16 @@ def pesquisar_trainers(params):
     # disponibilidade: slots com vagas livres, opcionalmente num dia da semana
     dia = params.get("dia_semana")
     if dia not in (None, "") or params.get("com_vagas") in ("1", "true", "True"):
-        from django.db.models import F
         livres = SlotDisponibilidade.objects.filter(vagas_ocupadas__lt=F("capacidade"))
         if dia not in (None, ""):
             livres = livres.filter(dia_semana=int(dia))
         qs = qs.filter(pk__in=livres.values("personal_trainer"))
+
+    if consulta := (params.get("q") or "").strip():
+        vetor = (gerador or obter_gerador()).gerar(consulta)
+        # PTs sem embedding ficam no fim (nulls_last); desempate por avaliacao
+        return qs.annotate(distancia=CosineDistance("embedding", vetor)).order_by(
+            F("distancia").asc(nulls_last=True), "-avaliacao_media", "id"
+        )
 
     return qs.order_by("-avaliacao_media", "id")

@@ -1,4 +1,4 @@
-from pgvector.django import VectorField
+from pgvector.django import HnswIndex, VectorField
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -55,6 +55,17 @@ class PersonalTrainer(models.Model):
         blank=True, default=list,
     )
     embedding = VectorField(dimensions=1536, null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            HnswIndex(
+                name="pt_embedding_hnsw",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            ),
+        ]
 
     def __str__(self):
         return f"PT: {self.utilizador.username}"
