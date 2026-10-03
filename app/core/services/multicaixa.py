@@ -21,6 +21,10 @@ class MulticaixaGateway:
         """Inicia a cobranca e devolve a referencia do gateway (str)."""
         raise NotImplementedError
 
+    def transferir_para_pt(self, pagamento):
+        """Entrega ao PT o valor liquido (valor - comissao). Levanta GatewayErro se falhar."""
+        raise NotImplementedError
+
     def reembolsar(self, pagamento):
         """Pede o estorno de um pagamento aprovado. Levanta GatewayErro se falhar."""
         raise NotImplementedError
@@ -30,6 +34,9 @@ class MulticaixaReal(MulticaixaGateway):
     def iniciar_transacao(self, pagamento):
         raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
 
+    def transferir_para_pt(self, pagamento):
+        raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
+
     def reembolsar(self, pagamento):
         raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
 
@@ -37,6 +44,9 @@ class MulticaixaReal(MulticaixaGateway):
 class MulticaixaMock(MulticaixaGateway):
     def iniciar_transacao(self, pagamento):
         return f"MOCK-{uuid.uuid4().hex[:16].upper()}"
+
+    def transferir_para_pt(self, pagamento):
+        return True
 
     def reembolsar(self, pagamento):
         return True

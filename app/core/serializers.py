@@ -194,7 +194,7 @@ class SessaoSerializer(serializers.ModelSerializer):
         model = Sessao
         fields = [
             "id", "trainer_id", "slot", "data_hora", "modalidade", "quantidade_sessoes",
-            "valor_total", "estado", "data_cancelamento", "notas", "pagamentos",
+            "valor_total", "estado", "data_cancelamento", "data_realizacao", "reclamacao", "notas", "pagamentos",
         ]
         read_only_fields = fields
 
@@ -208,10 +208,11 @@ class ContratarSessaoSerializer(serializers.Serializer):
 
 
 class AtualizarSessaoSerializer(serializers.Serializer):
-    ACOES = ["cancelar", "reagendar", "confirmar", "iniciar", "concluir"]
+    ACOES = ["cancelar", "reagendar", "confirmar", "iniciar", "concluir", "reclamar"]
     acao = serializers.ChoiceField(choices=ACOES)
     slot_id = serializers.IntegerField(required=False)
     data_hora = serializers.DateTimeField(required=False)
+    motivo = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
         if data["acao"] == "reagendar" and not ("slot_id" in data and "data_hora" in data):

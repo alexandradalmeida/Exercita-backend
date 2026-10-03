@@ -159,4 +159,21 @@ def avancar_sessao(sessao, user, acao):
         raise ErroNegocio("A sessao so pode ser confirmada depois do pagamento aprovado.", 409)
     sessao.transitar(destino)
     if destino == Sessao.EstadoSessao.REALIZADA:
+        sessao.data_realizacao = timezone.now()
+        sessao.save(update_fields=["data_realizacao"])
         _liberar_vaga(sessao.slot)
+
+
+@transaction.atomic
+def reclamar_sessao(sessao, user, motivo):
+    """BR-03: o aluno contesta uma sessao realizada; o pagamento deixa de ser libertado automaticamente."""
+    if not _e_aluno(sessao, user):
+        raise ErroNegocio("Apenas o aluno pode reclamar.", 403)
+    if sessao.estado not in Sessao.ESTADOS_REALIZADOS:
+        raise ErroNegocio("So se pode reclamar de uma sessao realizada.", 409)
+    if sessao.pagamentos.filter(estado=Pagamento.EstadoPagamento.LIBERTADO).exists():
+        raise ErroNegocio("O pagamento ja foi libertado ao profissional.", 409)
+    if not motivo.strip():
+        raise ErroNegocio("Indique o motivo da reclamacao.")
+    sessao.reclamacao = motivo.strip()
+    sessao.save(update_fields=["reclamacao"])

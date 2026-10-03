@@ -11,9 +11,9 @@ from .serializers import (
 )
 from .services.multicaixa import assinatura_valida
 from .services.pagamentos import PagamentoErro
-from .services.transacoes import iniciar_pagamento, processar_callback
+from .services.transacoes import iniciar_pagamento, libertar_pagamento, processar_callback
 from .services.sessoes import (
-    ErroNegocio, avancar_sessao, cancelar_sessao, contratar_personal_trainer, reagendar_sessao,
+    ErroNegocio, avancar_sessao, cancelar_sessao, contratar_personal_trainer, reagendar_sessao, reclamar_sessao,
 )
 
 
@@ -74,6 +74,8 @@ class SessaoDetalheView(generics.RetrieveUpdateAPIView):
         try:
             if dados["acao"] == "cancelar":
                 extra["reembolsado"] = cancelar_sessao(sessao, request.user)
+            elif dados["acao"] == "reclamar":
+                reclamar_sessao(sessao, request.user, dados.get("motivo", ""))
             elif dados["acao"] == "reagendar":
                 slot = get_object_or_404(SlotDisponibilidade, pk=dados["slot_id"])
                 reagendar_sessao(sessao, request.user, slot, dados["data_hora"])
@@ -112,3 +114,15 @@ class PagamentoWebhookView(APIView):
         except PagamentoErro as erro:
             return Response({"mensagem": erro.mensagem}, status=erro.codigo)
         return Response({"estado": pagamento.estado, "alterado": alterado})
+
+
+class LibertarPagamentoView(APIView):
+    """POST /api/v1/payments/{id}/release/ - o aluno confirma a realizacao e liberta o valor ao PT (BR-03)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            pagamento = libertar_pagamento(pk, user=request.user)
+        except PagamentoErro as erro:
+            return Response({"mensagem": erro.mensagem}, status=erro.codigo)
+        return Response(PagamentoSerializer(pagamento).data)

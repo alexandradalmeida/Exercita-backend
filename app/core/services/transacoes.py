@@ -1,8 +1,10 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 
 from ..models import Pagamento, Sessao
-from .multicaixa import obter_gateway
+from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import PagamentoErro
 
 E = Pagamento.EstadoPagamento
@@ -43,3 +45,51 @@ def processar_callback(pagamento_id, referencia, resultado):
     else:
         pagamento.transitar(E.RECUSADO)
     return pagamento, True
+
+
+@transaction.atomic
+def libertar_pagamento(pagamento_id, user=None, automatico=False):
+    """BR-03: liberta ao PT o valor liquido de um pagamento aprovado cuja sessao foi realizada.
+    Manual: pelo aluno (confirmacao de realizacao) ou por um admin. Automatico: ver
+    `libertar_pagamentos_elegiveis`."""
+    try:
+        pagamento = Pagamento.objects.select_for_update(of=("self",)).select_related("sessao__aluno").get(pk=pagamento_id)
+    except Pagamento.DoesNotExist:
+        raise PagamentoErro("Pagamento nao encontrado.", 404)
+    sessao = pagamento.sessao
+    if not automatico:
+        if not (user.is_staff or (sessao and sessao.aluno.utilizador_id == user.id)):
+            raise PagamentoErro("Sem permissao para libertar este pagamento.", 403)
+    if pagamento.estado != E.APROVADO:
+        raise PagamentoErro(f"Apenas pagamentos aprovados podem ser libertados (atual: '{pagamento.estado}').", 409)
+    if sessao is None or sessao.estado not in Sessao.ESTADOS_REALIZADOS:
+        raise PagamentoErro("A sessao ainda nao foi realizada.", 409)
+    if sessao.reclamacao and not (user and user.is_staff):
+        raise PagamentoErro("Existe uma reclamacao em aberto para esta sessao.", 409)
+    try:
+        obter_gateway().transferir_para_pt(pagamento)
+    except GatewayErro:
+        raise PagamentoErro("Falha na transferencia para o profissional; tente novamente.", 502)
+    pagamento.transitar(E.LIBERTADO, data_libertacao=timezone.now())
+    return pagamento
+
+
+JANELA_LIBERTACAO_AUTOMATICA = timedelta(hours=24)
+
+
+def libertar_pagamentos_elegiveis(agora=None):
+    """BR-03: liberta os pagamentos de sessoes realizadas ha mais de 24h sem reclamacao.
+    Pensado para correr periodicamente (cron / `manage.py libertar_pagamentos`). Devolve a contagem."""
+    limite = (agora or timezone.now()) - JANELA_LIBERTACAO_AUTOMATICA
+    candidatos = Pagamento.objects.filter(
+        estado=E.APROVADO, sessao__estado__in=Sessao.ESTADOS_REALIZADOS,
+        sessao__data_realizacao__lte=limite, sessao__reclamacao="",
+    ).values_list("pk", flat=True)
+    libertados = 0
+    for pk in candidatos:
+        try:
+            libertar_pagamento(pk, automatico=True)
+            libertados += 1
+        except PagamentoErro:
+            continue  # fica para a proxima execucao
+    return libertados
