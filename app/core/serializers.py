@@ -205,3 +205,15 @@ class ContratarSessaoSerializer(serializers.Serializer):
     data_hora = serializers.DateTimeField()
     modalidade = serializers.ChoiceField(choices=Sessao.Modalidade.choices, default=Sessao.Modalidade.INDIVIDUAL)
     quantidade_sessoes = serializers.IntegerField(min_value=1, default=1)
+
+
+class AtualizarSessaoSerializer(serializers.Serializer):
+    ACOES = ["cancelar", "reagendar", "confirmar", "iniciar", "concluir"]
+    acao = serializers.ChoiceField(choices=ACOES)
+    slot_id = serializers.IntegerField(required=False)
+    data_hora = serializers.DateTimeField(required=False)
+
+    def validate(self, data):
+        if data["acao"] == "reagendar" and not ("slot_id" in data and "data_hora" in data):
+            raise serializers.ValidationError("reagendar exige slot_id e data_hora.")
+        return data

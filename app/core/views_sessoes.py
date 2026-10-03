@@ -5,8 +5,10 @@ from rest_framework.response import Response
 
 from .models import PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
 from .permissions import IsAluno
-from .serializers import ContratarSessaoSerializer, SessaoSerializer
-from .services.sessoes import ErroNegocio, contratar_personal_trainer
+from .serializers import AtualizarSessaoSerializer, ContratarSessaoSerializer, SessaoSerializer
+from .services.sessoes import (
+    ErroNegocio, avancar_sessao, cancelar_sessao, contratar_personal_trainer, reagendar_sessao,
+)
 
 
 def responder_erro_negocio(erro):
@@ -43,3 +45,35 @@ class SessaoListCreateView(generics.ListAPIView):
         except ErroNegocio as erro:
             return responder_erro_negocio(erro)
         return Response(SessaoSerializer(sessao).data, status=status.HTTP_201_CREATED)
+
+
+class SessaoDetalheView(generics.RetrieveUpdateAPIView):
+    """GET /api/v1/sessions/{id}/ ; PATCH com {"acao": cancelar|reagendar|confirmar|iniciar|concluir}."""
+    serializer_class = SessaoSerializer
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Sessao.objects.prefetch_related("pagamentos")
+        if user.tipo == Utilizador.TipoUtilizador.ALUNO:
+            return qs.filter(aluno__utilizador=user)
+        return qs.filter(personal_trainer__utilizador=user)
+
+    def patch(self, request, *args, **kwargs):
+        sessao = self.get_object()
+        entrada = AtualizarSessaoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        dados = entrada.validated_data
+        extra = {}
+        try:
+            if dados["acao"] == "cancelar":
+                extra["reembolsado"] = cancelar_sessao(sessao, request.user)
+            elif dados["acao"] == "reagendar":
+                slot = get_object_or_404(SlotDisponibilidade, pk=dados["slot_id"])
+                reagendar_sessao(sessao, request.user, slot, dados["data_hora"])
+            else:
+                avancar_sessao(sessao, request.user, dados["acao"])
+        except ErroNegocio as erro:
+            return responder_erro_negocio(erro)
+        sessao = self.get_queryset().get(pk=sessao.pk)
+        return Response({**SessaoSerializer(sessao).data, **extra})
