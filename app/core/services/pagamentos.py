@@ -15,3 +15,9 @@ def calcular_comissao(valor):
     valor = Decimal(valor)
     comissao = (valor * percentagem_comissao() / Decimal("100")).quantize(CENTIMO, rounding=ROUND_HALF_UP)
     return comissao, valor - comissao
+
+class PagamentoErro(Exception):
+    def __init__(self, mensagem, codigo=400):
+        super().__init__(mensagem)
+        self.mensagem = mensagem
+        self.codigo = codigo

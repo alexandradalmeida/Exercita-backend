@@ -1,11 +1,17 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .models import PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
 from .permissions import IsAluno
-from .serializers import AtualizarSessaoSerializer, ContratarSessaoSerializer, SessaoSerializer
+from .serializers import (
+    AtualizarSessaoSerializer, ContratarSessaoSerializer, PagamentoSerializer, SessaoSerializer,
+)
+from .services.multicaixa import assinatura_valida
+from .services.pagamentos import PagamentoErro
+from .services.transacoes import iniciar_pagamento, processar_callback
 from .services.sessoes import (
     ErroNegocio, avancar_sessao, cancelar_sessao, contratar_personal_trainer, reagendar_sessao,
 )
@@ -77,3 +83,32 @@ class SessaoDetalheView(generics.RetrieveUpdateAPIView):
             return responder_erro_negocio(erro)
         sessao = self.get_queryset().get(pk=sessao.pk)
         return Response({**SessaoSerializer(sessao).data, **extra})
+
+
+class IniciarPagamentoView(APIView):
+    """POST /api/v1/payments/ {"sessao_id": N} - inicia a transacao no Multicaixa Express."""
+    permission_classes = [IsAluno]
+
+    def post(self, request):
+        sessao = get_object_or_404(Sessao, pk=request.data.get("sessao_id"), aluno__utilizador=request.user)
+        try:
+            pagamento = iniciar_pagamento(sessao)
+        except PagamentoErro as erro:
+            return Response({"mensagem": erro.mensagem}, status=erro.codigo)
+        return Response(PagamentoSerializer(pagamento).data, status=status.HTTP_201_CREATED)
+
+
+class PagamentoWebhookView(APIView):
+    """POST /api/v1/payments/{id}/webhook/ - callback assincrono do gateway (assinado)."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request, pk):
+        if not assinatura_valida(request.body, request.headers.get("X-Signature", "")):
+            return Response({"mensagem": "Assinatura invalida."}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            pagamento, alterado = processar_callback(
+                pk, request.data.get("referencia"), request.data.get("estado"))
+        except PagamentoErro as erro:
+            return Response({"mensagem": erro.mensagem}, status=erro.codigo)
+        return Response({"estado": pagamento.estado, "alterado": alterado})

@@ -6,6 +6,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from ..models import Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade
+from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import calcular_comissao
 
 
@@ -101,7 +102,11 @@ def cancelar_sessao(sessao, user):
         if pagamento.estado == Pagamento.EstadoPagamento.PENDENTE:
             pagamento.transitar(Pagamento.EstadoPagamento.RECUSADO)  # nunca chegou a ser pago
         elif pagamento.estado == Pagamento.EstadoPagamento.APROVADO and reembolsar:
-            pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)  # TODO: pedido de estorno ao Multicaixa
+            try:
+                obter_gateway().reembolsar(pagamento)
+            except GatewayErro:
+                raise ErroNegocio("Falha ao solicitar o reembolso ao Multicaixa; tente novamente.", 502)
+            pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)
             reembolsado = True
         # aprovado sem direito a reembolso: fica retido ate decisao do admin (regra a confirmar)
     return reembolsado

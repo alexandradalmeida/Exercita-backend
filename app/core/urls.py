@@ -1,7 +1,9 @@
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views_sessoes import SessaoDetalheView, SessaoListCreateView
+from .views_sessoes import (
+    IniciarPagamentoView, PagamentoWebhookView, SessaoDetalheView, SessaoListCreateView,
+)
 from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet, FavoritoDetalheView, FavoritosView, TrainerDisponibilidadeView, TrainerListView, TrainerPerfilView
 from .views import (
     RegistoView, ConfirmarEmailView, LoginView, LogoutView,
@@ -34,5 +36,7 @@ urlpatterns = [
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
     path("sessions/<int:pk>/", SessaoDetalheView.as_view(), name="sessao_detalhe"),
+    path("payments/", IniciarPagamentoView.as_view(), name="pagamento_iniciar"),
+    path("payments/<int:pk>/webhook/", PagamentoWebhookView.as_view(), name="pagamento_webhook"),
     path("", include(router.urls)),
 ]
