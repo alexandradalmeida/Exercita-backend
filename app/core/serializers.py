@@ -3,6 +3,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
 from .services.embeddings import atualizar_embedding
 from datetime import time
+from decimal import Decimal
+
+from .services.geocoding import obter_geocoder
 
 from .models import Avaliacao, Certificacao, Ginasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
@@ -245,6 +248,7 @@ class CriarAvaliacaoSerializer(serializers.Serializer):
 
 class GinasioSerializer(serializers.ModelSerializer):
     distancia_km = serializers.FloatField(read_only=True)
+    equipamentos = serializers.ListField(child=serializers.CharField(allow_blank=True, max_length=100), required=False)
 
     class Meta:
         model = Ginasio
@@ -279,3 +283,21 @@ class GinasioSerializer(serializers.ModelSerializer):
                 if fecha <= abre:
                     raise serializers.ValidationError(f"Dia {dia}: o fecho tem de ser posterior a abertura.")
         return horarios
+
+    def validate_equipamentos(self, equipamentos):
+        return [e.strip().lower() for e in equipamentos if e.strip()]  # normalizado para a pesquisa
+
+    def validate(self, data):
+        lat = data.get("latitude", getattr(self.instance, "latitude", None))
+        lng = data.get("longitude", getattr(self.instance, "longitude", None))
+        morada = data.get("morada", getattr(self.instance, "morada", ""))
+        if (lat is None or lng is None) and morada:
+            encontrado = obter_geocoder().geocodificar(morada)
+            if encontrado:
+                lat, lng = (Decimal(str(round(c, 6))) for c in encontrado)
+                data["latitude"], data["longitude"] = lat, lng
+        estado = data.get("estado_parceria", getattr(self.instance, "estado_parceria", None))
+        if estado == Ginasio.EstadoParceria.PARCEIRO and (lat is None or lng is None):
+            raise serializers.ValidationError(
+                "Um ginasio parceiro precisa de coordenadas: indique latitude/longitude ou uma morada geocodificavel.")
+        return data
