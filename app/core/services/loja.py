@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import F
 
-from ..models import Carrinho, Encomenda, ItemCarrinho, ItemEncomenda, Pagamento, Produto
+from ..models import Carrinho, Encomenda, EventoEncomenda, ItemCarrinho, ItemEncomenda, Pagamento, Produto
 from . import notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .sessoes import ErroNegocio
@@ -87,6 +87,7 @@ def checkout(aluno, morada_entrega):
             preco_unitario=produto.preco, quantidade=item.quantidade)
         Produto.objects.filter(pk=produto.pk).update(stock=F("stock") - item.quantidade)
     Pagamento.objects.create(encomenda=encomenda, valor=total)  # sem comissao: a venda e da propria plataforma
+    EventoEncomenda.objects.create(encomenda=encomenda, estado=E.PENDENTE_PAGAMENTO)
     carrinho.itens.all().delete()
     notificacoes.encomenda_criada(encomenda)
     return encomenda
@@ -118,3 +119,26 @@ def cancelar_encomenda(encomenda):
     repor_stock(encomenda)
     notificacoes.encomenda_atualizada(encomenda, "cancelada")
     return reembolsado
+
+
+ACOES_ADMIN = {"preparar": E.EM_PREPARACAO, "enviar": E.ENVIADA, "entregar": E.ENTREGUE}
+
+
+@transaction.atomic
+def avancar_encomenda(encomenda, acao, codigo_rastreio=""):
+    """Gestao de encomendas (admin): paga -> em preparacao -> enviada (com codigo de rastreio) -> entregue."""
+    from django.utils import timezone
+    encomenda = Encomenda.objects.select_for_update().get(pk=encomenda.pk)
+    destino = ACOES_ADMIN[acao]
+    if not encomenda.pode_transitar(destino):
+        raise ErroNegocio(f"Nao e possivel '{acao}' uma encomenda '{encomenda.get_estado_display()}'.", 409)
+    campos = {}
+    if destino == E.ENVIADA:
+        if not codigo_rastreio.strip():
+            raise ErroNegocio("Indique o codigo de rastreio para enviar a encomenda.")
+        campos = {"codigo_rastreio": codigo_rastreio.strip(), "data_envio": timezone.now()}
+    elif destino == E.ENTREGUE:
+        campos = {"data_entrega": timezone.now()}
+    encomenda.transitar(destino, **campos)
+    notificacoes.encomenda_atualizada(encomenda, encomenda.get_estado_display().lower())
+    return encomenda

@@ -1,17 +1,17 @@
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
-from .models import Produto
+from .models import Encomenda, Produto
 from .permissions import IsAluno
 from .services.loja import (
-    adicionar_ao_carrinho, checkout, definir_quantidade, obter_carrinho, remover_do_carrinho, total_do_carrinho,
+    adicionar_ao_carrinho, avancar_encomenda, cancelar_encomenda, checkout, definir_quantidade, obter_carrinho, remover_do_carrinho, total_do_carrinho,
 )
 from .services.sessoes import ErroNegocio
 from .serializers import (
-    AdicionarItemSerializer, CheckoutSerializer, EncomendaSerializer, ItemCarrinhoSerializer,
+    AdicionarItemSerializer, AtualizarEncomendaSerializer, CheckoutSerializer, EncomendaSerializer, ItemCarrinhoSerializer,
     ProdutoSerializer, QuantidadeItemSerializer,
 )
 
@@ -110,3 +110,37 @@ class CheckoutView(APIView):
         except ErroNegocio as erro:
             return Response({"mensagem": erro.mensagem}, status=erro.codigo)
         return Response(EncomendaSerializer(encomenda).data, status=status.HTTP_201_CREATED)
+
+
+class EncomendaViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """/api/v1/shop/orders/ - o aluno consulta as suas encomendas (com rastreamento); o admin ve todas.
+    PATCH {"acao": ...}: o aluno pode `cancelar` (ate a encomenda ser enviada);
+    o admin pode `preparar`, `enviar` (com `codigo_rastreio`), `entregar` e `cancelar`."""
+    serializer_class = EncomendaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Encomenda.objects.prefetch_related("itens", "pagamentos", "eventos").order_by("-data_criacao", "-id")
+        user = self.request.user
+        if user.is_staff:
+            return qs
+        if hasattr(user, "perfil_aluno"):
+            return qs.filter(aluno=user.perfil_aluno)
+        return qs.none()
+
+    def partial_update(self, request, *args, **kwargs):
+        encomenda = self.get_object()
+        entrada = AtualizarEncomendaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        acao = entrada.validated_data["acao"]
+        if acao != "cancelar" and not request.user.is_staff:
+            return Response({"mensagem": "Apenas a administracao pode fazer esta acao."}, status=status.HTTP_403_FORBIDDEN)
+        extra = {}
+        try:
+            if acao == "cancelar":
+                extra["reembolsado"] = cancelar_encomenda(encomenda)
+            else:
+                avancar_encomenda(encomenda, acao, entrada.validated_data.get("codigo_rastreio", ""))
+        except ErroNegocio as erro:
+            return Response({"mensagem": erro.mensagem}, status=erro.codigo)
+        return Response({**EncomendaSerializer(self.get_queryset().get(pk=encomenda.pk)).data, **extra})

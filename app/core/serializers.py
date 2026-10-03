@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, Encomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -443,9 +443,24 @@ class ItemEncomendaSerializer(serializers.ModelSerializer):
 class EncomendaSerializer(serializers.ModelSerializer):
     itens = ItemEncomendaSerializer(many=True, read_only=True)
     pagamentos = PagamentoSerializer(many=True, read_only=True)
+    rastreamento = serializers.SerializerMethodField()
 
     class Meta:
         model = Encomenda
         fields = ["id", "estado", "total", "morada_entrega", "codigo_rastreio", "data_criacao",
-                  "data_envio", "data_entrega", "itens", "pagamentos"]
+                  "data_envio", "data_entrega", "itens", "pagamentos", "rastreamento"]
         read_only_fields = fields
+
+    def get_rastreamento(self, obj):
+        return EventoEncomendaSerializer(obj.eventos.all(), many=True).data
+
+
+class EventoEncomendaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventoEncomenda
+        fields = ["estado", "nota", "data"]
+
+
+class AtualizarEncomendaSerializer(serializers.Serializer):
+    acao = serializers.ChoiceField(choices=["cancelar", "preparar", "enviar", "entregar"])
+    codigo_rastreio = serializers.CharField(required=False, allow_blank=True, max_length=100)

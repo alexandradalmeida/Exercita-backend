@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Utilizador, UtilizadorAluno, PersonalTrainer, Ginasio,
     Sessao, Avaliacao, Pagamento, PlanoNutricional, Produto, Notificacao,
-    Certificacao, SlotDisponibilidade, Favorito, Nutricionista, ReservaGinasio, Refeicao, RegistoRefeicao,
+    Certificacao, SlotDisponibilidade, Favorito, Nutricionista, ReservaGinasio, Refeicao, RegistoRefeicao, Encomenda, Carrinho,
 )
 
 admin.site.register(Utilizador)
@@ -22,3 +22,5 @@ admin.site.register(Nutricionista)
 admin.site.register(ReservaGinasio)
 admin.site.register(Refeicao)
 admin.site.register(RegistoRefeicao)
+admin.site.register(Encomenda)
+admin.site.register(Carrinho)

@@ -442,6 +442,7 @@ class Encomenda(models.Model):
         for nome, valor in campos.items():
             setattr(self, nome, valor)
         self.save(update_fields=["estado", *campos])
+        EventoEncomenda.objects.create(encomenda=self, estado=novo_estado)
 
     def __str__(self):
         return f"Encomenda {self.id} ({self.estado})"
@@ -458,3 +459,14 @@ class ItemEncomenda(models.Model):
     @property
     def subtotal(self):
         return self.preco_unitario * self.quantidade
+
+
+class EventoEncomenda(models.Model):
+    """Linha temporal de rastreamento: um registo por cada mudanca de estado da encomenda."""
+    encomenda = models.ForeignKey(Encomenda, on_delete=models.CASCADE, related_name="eventos")
+    estado = models.CharField(max_length=20, choices=Encomenda.Estado.choices)
+    nota = models.CharField(max_length=255, blank=True)
+    data = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["data", "id"]
