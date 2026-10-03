@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
+from .permissions import IsPersonalTrainerVerificado
 from .models import Utilizador, UtilizadorAluno, PersonalTrainer
 
 
@@ -198,3 +199,46 @@ class GoogleStateTestCase(TestCase):
         segunda = self.client.get("/api/v1/auth/google/callback/", {"code": "x", "state": state})
         self.assertEqual(mock_post.call_count, 1)  # state ja consumido
         self.assertEqual(segunda.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class BR01PublicacaoTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.utilizador = Utilizador.objects.create_user(
+            username="ptbr01", email="ptbr01@example.com", password="SenhaForte123!",
+            tipo="personal_trainer", is_active=True, telefone="923444555",
+        )
+        self.pt = PersonalTrainer.objects.create(utilizador=self.utilizador)
+        self.client.force_authenticate(self.utilizador)
+
+    def test_pt_nao_verificado_nao_publica_preco(self):
+        response = self.client.put("/api/v1/perfil/personal-trainer/", {
+            "telefone": "923444555", "preco_hora": "5000.00", "modalidades_pagamento": ["multicaixa"],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.pt.refresh_from_db()
+        self.assertIsNone(self.pt.preco_hora)
+
+    def test_pt_nao_verificado_edita_biografia(self):
+        response = self.client.put("/api/v1/perfil/personal-trainer/", {
+            "telefone": "923444555", "biografia": "Ola",
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_pt_verificado_publica_preco(self):
+        self.pt.estado_verificacao = PersonalTrainer.EstadoVerificacao.VERIFICADO
+        self.pt.save()
+        response = self.client.put("/api/v1/perfil/personal-trainer/", {
+            "telefone": "923444555", "preco_hora": "5000.00", "modalidades_pagamento": ["multicaixa"],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.pt.refresh_from_db()
+        self.assertEqual(self.pt.modalidades_pagamento, ["multicaixa"])
+
+    def test_permissao_so_aceita_pt_verificado(self):
+        request = type("R", (), {"user": self.utilizador})()
+        self.assertFalse(IsPersonalTrainerVerificado().has_permission(request, None))
+        self.pt.estado_verificacao = PersonalTrainer.EstadoVerificacao.VERIFICADO
+        self.pt.save()
+        request = type("R", (), {"user": Utilizador.objects.get(pk=self.utilizador.pk)})()
+        self.assertTrue(IsPersonalTrainerVerificado().has_permission(request, None))

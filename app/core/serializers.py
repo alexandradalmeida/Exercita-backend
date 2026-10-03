@@ -69,7 +69,22 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "email", "telefone",
             "estado_verificacao", "especialidade", "biografia",
+            "preco_hora", "modalidades_pagamento",
         ]
         read_only_fields = ["estado_verificacao"]  # só muda via processo de verificação, não pelo próprio PT
 
-        
+    def validate(self, data):
+        # BR-01: publicar preco/modalidades equivale a publicar o servico
+        publica = "preco_hora" in data or "modalidades_pagamento" in data
+        if publica and self.instance and self.instance.estado_verificacao != PersonalTrainer.EstadoVerificacao.VERIFICADO:
+            raise serializers.ValidationError(
+                "So Personal Trainers verificados podem publicar preco e modalidades de pagamento."
+            )
+        return data
+
+    def update(self, instance, validated_data):
+        utilizador_data = validated_data.pop("utilizador", {})
+        if "telefone" in utilizador_data:
+            instance.utilizador.telefone = utilizador_data["telefone"]
+            instance.utilizador.save()
+        return super().update(instance, validated_data)
