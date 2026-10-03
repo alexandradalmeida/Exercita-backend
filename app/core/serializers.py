@@ -164,13 +164,19 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
     certificacoes = CertificacaoSerializer(many=True, read_only=True)
     avaliacao_media = serializers.FloatField(read_only=True)
     avaliacoes = serializers.SerializerMethodField()
+    ginasios = serializers.SerializerMethodField()
 
     class Meta:
         model = PersonalTrainer
         fields = [
             "id", "username", "especialidade", "localizacao", "biografia", "preco_hora",
             "modalidades_pagamento", "certificacoes", "avaliacao_media", "total_avaliacoes", "avaliacoes",
+            "ginasios",
         ]
+
+    def get_ginasios(self, obj):
+        parceiros = obj.ginasios.filter(estado_parceria=Ginasio.EstadoParceria.PARCEIRO).order_by("nome")
+        return [{"id": g.id, "nome": g.nome, "morada": g.morada} for g in parceiros]
 
     def get_avaliacoes(self, obj):
         qs = (

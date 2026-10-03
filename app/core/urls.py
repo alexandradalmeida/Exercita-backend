@@ -3,6 +3,7 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
+from .views_ginasios_trainers import GinasioTrainerDetalheView, GinasioTrainersView
 from .views_sessoes import (
     IniciarPagamentoView, LibertarPagamentoView, PagamentoWebhookView, SessaoAvaliacoesView, SessaoCalendarioView, SessaoDetalheView, SessaoListCreateView,
 )
@@ -36,6 +37,8 @@ urlpatterns = [
     path("trainers/", TrainerListView.as_view(), name="trainers"),
     path("trainers/<int:pk>/profile/", TrainerPerfilView.as_view(), name="trainer_profile"),
     path("trainers/<int:pk>/availability/", TrainerDisponibilidadeView.as_view(), name="trainer_availability"),
+    path("gyms/<int:pk>/trainers/", GinasioTrainersView.as_view(), name="ginasio_trainers"),
+    path("gyms/<int:pk>/trainers/<int:trainer_id>/", GinasioTrainerDetalheView.as_view(), name="ginasio_trainer"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
