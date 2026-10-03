@@ -125,3 +125,8 @@ def enviar_lembretes(agora=None, antecedencia_horas=24):
         sessao.save(update_fields=["lembrete_enviado"])
         total += 1
     return total
+
+
+def nova_avaliacao(avaliacao):
+    notificar(avaliacao.avaliado,
+              f"{avaliacao.autor.username} avaliou a sessao com {avaliacao.classificacao}/5.", "Nova avaliacao")

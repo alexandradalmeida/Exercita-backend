@@ -71,8 +71,9 @@ class PersonalTrainerSerializer(serializers.ModelSerializer):
             "id", "username", "email", "telefone",
             "estado_verificacao", "especialidade", "localizacao", "biografia",
             "preco_hora", "modalidades_pagamento", "janela_cancelamento_horas",
+            "classificacao_media", "total_avaliacoes",
         ]
-        read_only_fields = ["estado_verificacao"]  # só muda via processo de verificação, não pelo próprio PT
+        read_only_fields = ["estado_verificacao", "classificacao_media", "total_avaliacoes"]  # só muda via processo de verificação, não pelo próprio PT
 
     def validate(self, data):
         # BR-01: publicar preco/modalidades equivale a publicar o servico
@@ -126,7 +127,6 @@ class TrainerListaSerializer(serializers.ModelSerializer):
     """Resultado da pesquisa: dados publicos + disponibilidade (vagas vs lotacao)."""
     username = serializers.CharField(source="utilizador.username", read_only=True)
     avaliacao_media = serializers.FloatField(read_only=True)
-    total_avaliacoes = serializers.IntegerField(read_only=True)
     vagas_disponiveis = serializers.SerializerMethodField()
     lotacao_atingida = serializers.SerializerMethodField()
 
@@ -158,7 +158,6 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="utilizador.username", read_only=True)
     certificacoes = CertificacaoSerializer(many=True, read_only=True)
     avaliacao_media = serializers.FloatField(read_only=True)
-    total_avaliacoes = serializers.IntegerField(read_only=True)
     avaliacoes = serializers.SerializerMethodField()
 
     class Meta:
@@ -225,3 +224,18 @@ class NotificacaoSerializer(serializers.ModelSerializer):
         model = Notificacao
         fields = ["id", "mensagem", "lida", "data_criacao"]
         read_only_fields = ["id", "mensagem", "data_criacao"]
+
+
+class AvaliacaoSerializer(serializers.ModelSerializer):
+    autor = serializers.CharField(source="autor.username", read_only=True)
+    avaliado = serializers.CharField(source="avaliado.username", read_only=True)
+
+    class Meta:
+        model = Avaliacao
+        fields = ["id", "sessao", "autor", "avaliado", "classificacao", "comentario", "data_criacao"]
+        read_only_fields = ["id", "sessao", "autor", "avaliado", "data_criacao"]
+
+
+class CriarAvaliacaoSerializer(serializers.Serializer):
+    classificacao = serializers.IntegerField(min_value=1, max_value=5)
+    comentario = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")

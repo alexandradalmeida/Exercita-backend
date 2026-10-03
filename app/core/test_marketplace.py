@@ -86,8 +86,11 @@ def criar_avaliacao(pt, nota, n=[0]):
     u = Utilizador.objects.create_user(username=f"aluno{n[0]}", password="SenhaForte123!", tipo="aluno", is_active=True)
     aluno = UtilizadorAluno.objects.create(utilizador=u)
     sessao = Sessao.objects.create(aluno=aluno, personal_trainer=pt, data_hora=timezone.now(), estado="realizada")
-    return Avaliacao.objects.create(
+    av = Avaliacao.objects.create(
         sessao=sessao, autor=u, avaliado=pt.utilizador, classificacao=nota, comentario="ok")
+    from .services.avaliacoes import recalcular_reputacao
+    recalcular_reputacao(pt)
+    return av
 
 
 class PesquisaTrainersTestCase(TestCase):
@@ -167,6 +170,8 @@ class PerfilPublicoTestCase(TestCase):
         av = criar_avaliacao(self.pt, 1)
         av.sessao.estado = "cancelada"
         av.sessao.save()
+        from .services.avaliacoes import recalcular_reputacao
+        recalcular_reputacao(self.pt)
         r = self.client.get(f"/api/v1/trainers/{self.pt.id}/profile/")
         self.assertEqual(r.data["avaliacoes"], [])
         self.assertIsNone(r.data["avaliacao_media"])

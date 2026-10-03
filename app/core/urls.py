@@ -3,7 +3,7 @@ from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_sessoes import (
-    IniciarPagamentoView, LibertarPagamentoView, PagamentoWebhookView, SessaoCalendarioView, SessaoDetalheView, SessaoListCreateView,
+    IniciarPagamentoView, LibertarPagamentoView, PagamentoWebhookView, SessaoAvaliacoesView, SessaoCalendarioView, SessaoDetalheView, SessaoListCreateView,
 )
 from .views_marketplace import CertificacaoViewSet, SlotDisponibilidadeViewSet, FavoritoDetalheView, FavoritosView, TrainerDisponibilidadeView, TrainerListView, TrainerPerfilView
 from .views import (
@@ -38,6 +38,7 @@ urlpatterns = [
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
     path("sessions/<int:pk>/", SessaoDetalheView.as_view(), name="sessao_detalhe"),
     path("sessions/<int:pk>/calendar/", SessaoCalendarioView.as_view(), name="sessao_calendario"),
+    path("sessions/<int:pk>/reviews/", SessaoAvaliacoesView.as_view(), name="sessao_avaliacoes"),
     path("payments/", IniciarPagamentoView.as_view(), name="pagamento_iniciar"),
     path("notifications/", NotificacaoListView.as_view(), name="notificacoes"),
     path("notifications/read-all/", NotificacoesMarcarLidasView.as_view(), name="notificacoes_ler_todas"),

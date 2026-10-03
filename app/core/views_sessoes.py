@@ -8,8 +8,10 @@ from rest_framework.response import Response
 from .models import PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
 from .permissions import IsAluno
 from .serializers import (
+    AvaliacaoSerializer, CriarAvaliacaoSerializer,
     AtualizarSessaoSerializer, ContratarSessaoSerializer, PagamentoSerializer, SessaoSerializer,
 )
+from .services.avaliacoes import avaliar_sessao
 from .services.calendario import sessao_para_ics
 from .services.multicaixa import assinatura_valida
 from .services.pagamentos import PagamentoErro
@@ -145,3 +147,31 @@ class SessaoCalendarioView(APIView):
         resposta = HttpResponse(sessao_para_ics(sessao), content_type="text/calendar; charset=utf-8")
         resposta["Content-Disposition"] = f'attachment; filename="sessao-{sessao.pk}.ics"'
         return resposta
+
+
+class SessaoAvaliacoesView(APIView):
+    """GET/POST /api/v1/sessions/{id}/reviews/ - avaliacao mutua aluno <-> PT (UC-09)."""
+    permission_classes = [IsAuthenticated]
+
+    def _sessao(self, request, pk):
+        user = request.user
+        qs = Sessao.objects.select_related("aluno__utilizador", "personal_trainer__utilizador")
+        qs = qs.filter(aluno__utilizador=user) if user.tipo == Utilizador.TipoUtilizador.ALUNO \
+            else qs.filter(personal_trainer__utilizador=user)
+        return get_object_or_404(qs, pk=pk)
+
+    def get(self, request, pk):
+        sessao = self._sessao(request, pk)
+        avaliacoes = sessao.avaliacoes.select_related("autor", "avaliado").order_by("id")
+        return Response(AvaliacaoSerializer(avaliacoes, many=True).data)
+
+    def post(self, request, pk):
+        sessao = self._sessao(request, pk)
+        entrada = CriarAvaliacaoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        try:
+            avaliacao = avaliar_sessao(sessao, request.user, entrada.validated_data["classificacao"],
+                                       entrada.validated_data["comentario"])
+        except ErroNegocio as erro:
+            return responder_erro_negocio(erro)
+        return Response(AvaliacaoSerializer(avaliacao).data, status=status.HTTP_201_CREATED)

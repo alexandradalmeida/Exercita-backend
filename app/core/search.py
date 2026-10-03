@@ -1,29 +1,22 @@
-from django.db.models import Avg, Count, F, FloatField, IntegerField, OuterRef, Subquery, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Count, F, FloatField, IntegerField, OuterRef, Subquery, Sum
+from django.db.models.functions import Cast, Coalesce
 
 from pgvector.django import CosineDistance
 
-from .models import Avaliacao, PersonalTrainer, Sessao, SlotDisponibilidade
+from .models import PersonalTrainer, SlotDisponibilidade
 from .services.embeddings import obter_gerador
 
 
 def pesquisar_trainers(params, gerador=None):
     """Pesquisa de PTs verificados com filtros (UC-05). `params` e um QueryDict/dict.
     Com `q`, ordena por relevancia (matching por embeddings, distancia do cosseno).
-    Os agregados usam subqueries para nao multiplicar linhas entre relacoes diferentes."""
-    avaliacoes = (
-        Avaliacao.objects.filter(
-            avaliado__perfil_personal_trainer=OuterRef("pk"), sessao__estado__in=Sessao.ESTADOS_REALIZADOS)
-        .values("avaliado")
-    )
+    A reputacao vem dos campos em cache do PT. Os agregados de slots usam subqueries para nao multiplicar linhas entre relacoes diferentes."""
     slots = SlotDisponibilidade.objects.filter(personal_trainer=OuterRef("pk")).values("personal_trainer")
 
     qs = PersonalTrainer.objects.filter(
         estado_verificacao=PersonalTrainer.EstadoVerificacao.VERIFICADO
     ).select_related("utilizador").annotate(
-        avaliacao_media=Subquery(avaliacoes.annotate(m=Avg("classificacao")).values("m"), output_field=FloatField()),
-        total_avaliacoes=Coalesce(
-            Subquery(avaliacoes.annotate(c=Count("id")).values("c"), output_field=IntegerField()), 0),
+        avaliacao_media=Cast("classificacao_media", FloatField()),  # reputacao em cache (ver services.avaliacoes)
         total_slots=Coalesce(
             Subquery(slots.annotate(c=Count("id")).values("c"), output_field=IntegerField()), 0),
         capacidade_total=Coalesce(

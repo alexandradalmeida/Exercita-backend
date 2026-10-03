@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .models import Avaliacao, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .services.avaliacoes import recalcular_reputacao
 from .services.embeddings import HashEmbeddings
 
 N_TRAINERS = 2000
@@ -55,6 +56,8 @@ class DesempenhoPesquisaTestCase(TestCase):
             Avaliacao(sessao=s, autor=aluno_u, avaliado=s.personal_trainer.utilizador, classificacao=rnd.randint(1, 5))
             for s in sessoes
         ])
+        for pt in pts:
+            recalcular_reputacao(pt)
         cls.aluno_u = aluno_u
 
     def test_p95_abaixo_de_2_segundos(self):

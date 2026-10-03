@@ -53,6 +53,9 @@ class PersonalTrainer(models.Model):
     preco_hora = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     # UC-08: ate quantas horas antes da sessao o aluno pode cancelar com reembolso total
     janela_cancelamento_horas = models.PositiveIntegerField(default=24)
+    # reputacao: media das avaliacoes recebidas (so de sessoes realizadas), recalculada a cada avaliacao
+    classificacao_media = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    total_avaliacoes = models.PositiveIntegerField(default=0)
     modalidades_pagamento = ArrayField(
         models.CharField(max_length=20, choices=ModalidadePagamento.choices),
         blank=True, default=list,
