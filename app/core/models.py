@@ -505,3 +505,44 @@ class DocumentoFinanceiro(models.Model):
 
     def __str__(self):
         return self.numero
+
+
+class ParceriaPT(models.Model):
+    """UC-13: Personal Trainer parceiro da plataforma, com remuneracao mensal fixa (BR-04)."""
+
+    class Estado(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        ATIVA = "ativa", "Ativa"
+        RECUSADA = "recusada", "Recusada"
+        TERMINADA = "terminada", "Terminada"
+
+    personal_trainer = models.OneToOneField(PersonalTrainer, on_delete=models.CASCADE, related_name="parceria")
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDENTE)
+    mensagem = models.TextField(blank=True)  # apresentacao do PT na candidatura
+    remuneracao_mensal = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])  # definida pelo admin
+    data_candidatura = models.DateTimeField(auto_now_add=True)
+    data_inicio = models.DateField(null=True, blank=True)
+    data_fim = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Parceria {self.personal_trainer_id} ({self.estado})"
+
+
+class RemuneracaoParceria(models.Model):
+    """Registo da remuneracao mensal devida a um PT parceiro. So e registada: o pagamento efetivo
+    e marcado manualmente pelo admin (TODO: transferencia automatica via gateway)."""
+
+    class Estado(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        PAGA = "paga", "Paga"
+
+    parceria = models.ForeignKey(ParceriaPT, on_delete=models.CASCADE, related_name="remuneracoes")
+    mes = models.DateField()  # primeiro dia do mes de referencia
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDENTE)
+    data_pagamento = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["parceria", "mes"], name="uma_remuneracao_por_mes")]
+        ordering = ["-mes"]

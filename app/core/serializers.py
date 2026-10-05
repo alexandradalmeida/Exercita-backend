@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, DocumentoFinanceiro, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import Avaliacao, Certificacao, DocumentoFinanceiro, ParceriaPT, RemuneracaoParceria, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -473,3 +473,20 @@ class DocumentoFinanceiroSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocumentoFinanceiro
         fields = ["id", "numero", "tipo", "tipo_display", "pagamento_id", "linhas", "total", "data_emissao"]
+
+
+class ParceriaSerializer(serializers.ModelSerializer):
+    trainer_id = serializers.IntegerField(source="personal_trainer_id", read_only=True)
+    trainer = serializers.CharField(source="personal_trainer.utilizador.username", read_only=True)
+
+    class Meta:
+        model = ParceriaPT
+        fields = ["id", "trainer_id", "trainer", "estado", "mensagem", "remuneracao_mensal",
+                  "data_candidatura", "data_inicio", "data_fim"]
+        read_only_fields = [f for f in fields if f != "mensagem"]
+
+
+class RemuneracaoParceriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RemuneracaoParceria
+        fields = ["id", "parceria", "mes", "valor", "estado", "data_pagamento"]

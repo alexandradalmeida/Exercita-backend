@@ -4,6 +4,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
 from .views_faturacao import DocumentoFinanceiroViewSet
+from .views_parcerias import (
+    MinhaParceriaView, ParceriaAcaoView, ParceriasAdminListView, RemuneracaoPagaView,
+)
 from .views_loja import (
     CarrinhoItemView, CarrinhoItensView, CarrinhoView, CheckoutView, EncomendaViewSet, ProdutoViewSet,
 )
@@ -61,6 +64,11 @@ urlpatterns = [
     path("shop/cart/items/", CarrinhoItensView.as_view(), name="carrinho_itens"),
     path("shop/cart/items/<int:produto_id>/", CarrinhoItemView.as_view(), name="carrinho_item"),
     path("shop/checkout/", CheckoutView.as_view(), name="checkout"),
+    path("partnerships/", ParceriasAdminListView.as_view(), name="parcerias"),
+    path("partnerships/apply/", MinhaParceriaView.as_view(), name="parceria_candidatar"),
+    path("partnerships/me/", MinhaParceriaView.as_view(), name="parceria_minha"),
+    path("partnerships/payouts/<int:pk>/pay/", RemuneracaoPagaView.as_view(), name="remuneracao_paga"),
+    path("partnerships/<int:pk>/<str:acao>/", ParceriaAcaoView.as_view(), name="parceria_acao"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),

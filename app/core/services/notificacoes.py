@@ -162,3 +162,14 @@ def encomenda_criada(encomenda):
 def encomenda_atualizada(encomenda, estado_legivel):
     notificar(encomenda.aluno.utilizador, f"A sua encomenda #{encomenda.id} esta {estado_legivel}.",
               "Estado da encomenda")
+
+
+# --- parcerias (UC-13 / BR-04) ---
+def parceria_atualizada(parceria, descricao):
+    notificar(parceria.personal_trainer.utilizador, f"A sua candidatura/parceria foi {descricao}.",
+              "Parceria Exercita")
+
+
+def remuneracao_paga(remuneracao):
+    notificar(remuneracao.parceria.personal_trainer.utilizador,
+              f"A remuneracao de {remuneracao.mes:%m/%Y} ({remuneracao.valor} Kz) foi paga.", "Remuneracao paga")
