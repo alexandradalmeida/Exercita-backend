@@ -119,6 +119,14 @@ def aplicar():
         setattr(serializer, nome, extend_schema_field(tipo)(getattr(serializer, nome)))
     from .serializers_progresso import MetricaFisicaSerializer
     MetricaFisicaSerializer.get_imc = extend_schema_field(OpenApiTypes.FLOAT)(MetricaFisicaSerializer.get_imc)
+    # --- RGPD ---
+    from . import views_rgpd
+    anotar(views_rgpd.ExportarDadosView, "get", responses={(200, "application/json"): OBJETO}, tags=["rgpd"],
+           description="Descarrega todos os dados pessoais do utilizador (acesso e portabilidade).")
+    anotar(views_rgpd.ApagarContaView, "delete", request=_corpo("ApagarContaPedido", password=serializers.CharField()),
+           responses={204: None}, tags=["rgpd"],
+           description="Apaga/anonimiza a conta. Exige a password e nenhuma obrigacao em aberto (409 se existir).")
+
     # campos calculados restantes
     s.ItemCarrinhoSerializer.get_subtotal = extend_schema_field(OpenApiTypes.DECIMAL)(s.ItemCarrinhoSerializer.get_subtotal)
     views_configuracao.ConfiguracaoSerializer.get_efetivos = extend_schema_field(OBJETO)(
