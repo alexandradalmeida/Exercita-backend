@@ -150,6 +150,17 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # limites de pedidos por IP/utilizador (mitiga forca bruta e abuso); `auth` = login, registo e OAuth
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": config("THROTTLE_ANON", default="120/min"),
+        "user": config("THROTTLE_USER", default="600/min"),
+        "auth": config("THROTTLE_AUTH", default="10/min"),
+    },
 }
 
 from datetime import timedelta
@@ -189,3 +200,6 @@ SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {
     "EstadoVerificacaoNutricionistaEnum": "core.models.Nutricionista.EstadoVerificacao",
     "FonteMedicaoEnum": "core.models.MetricaFisica.Fonte",
 }
+
+if TEST_RUN:  # a suite faz muitos pedidos em poucos segundos; os testes de throttling fixam os seus proprios limites
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {"anon": "100000/min", "user": "100000/min", "auth": "100000/min"}

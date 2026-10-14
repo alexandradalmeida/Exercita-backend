@@ -32,6 +32,7 @@ class RegistoView(generics.CreateAPIView):
     queryset = Utilizador.objects.all()
     serializer_class = RegistoSerializer
     permission_classes = [AllowAny]
+    throttle_scope = "auth"  # limite estrito contra forca bruta
 
     def perform_create(self, serializer):
         utilizador = serializer.save()
@@ -50,6 +51,7 @@ class RegistoView(generics.CreateAPIView):
 
 class ConfirmarEmailView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "auth"  # limite estrito contra forca bruta
 
     def get(self, request):
         uid = request.query_params.get("uid")
@@ -71,6 +73,7 @@ class ConfirmarEmailView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "auth"  # limite estrito contra forca bruta
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -175,6 +178,7 @@ class GoogleCallbackView(APIView):
     """Recebe o 'code' e 'state' do Google, valida, troca por tokens,
     valida o id_token, e cria/autentica o utilizador."""
     permission_classes = [AllowAny]
+    throttle_scope = "auth"  # limite estrito contra forca bruta
 
     def get(self, request):
         code = request.query_params.get("code")
@@ -252,6 +256,7 @@ class AppleLoginView(APIView):
     """Recebe o id_token obtido pela app com Sign in with Apple, valida-o contra
     as chaves publicas da Apple e cria/autentica o utilizador."""
     permission_classes = [AllowAny]
+    throttle_scope = "auth"  # limite estrito contra forca bruta
 
     def post(self, request):
         raw_id_token = request.data.get("id_token")

@@ -115,6 +115,7 @@ class PagamentoWebhookView(APIView):
     """POST /api/v1/payments/{id}/webhook/ - callback assincrono do gateway (assinado)."""
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = []  # o gateway chama de IPs fixos; a assinatura HMAC e a protecao
 
     def post(self, request, pk):
         if not assinatura_valida(request.body, request.headers.get("X-Signature", "")):
