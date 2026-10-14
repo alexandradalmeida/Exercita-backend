@@ -1,0 +1,17 @@
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 DJANGO_SETTINGS_MODULE=config.settings.production
+
+WORKDIR /app
+COPY app/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app/ .
+# nao corre como root
+RUN useradd --create-home exercita && chown -R exercita /app
+USER exercita
+
+EXPOSE 8000
+# collectstatic precisa da configuracao de producao (variaveis de ambiente), por isso corre no arranque.
+# As migracoes devem ser aplicadas como passo separado do deploy (python manage.py migrate), nao por cada replica.
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${WEB_CONCURRENCY:-3} --timeout 30 --access-logfile -"]

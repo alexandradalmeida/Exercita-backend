@@ -50,3 +50,7 @@ LOGGING = {
     "handlers": {"consola": {"class": "logging.StreamHandler", "formatter": "simples"}},
     "root": {"handlers": ["consola"], "level": config("LOG_LEVEL", default="INFO")},
 }
+
+# --- ficheiros estaticos (admin Django) servidos pela propria aplicacao ---
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
