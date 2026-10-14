@@ -603,3 +603,21 @@ class HistoricoTreino(models.Model):
         constraints = [models.UniqueConstraint(
             fields=["aluno", "fonte", "origem_externa_id"], condition=~models.Q(origem_externa_id=""),
             name="treino_externo_unico")]
+
+
+class ConfiguracaoPlataforma(models.Model):
+    """Parametros de negocio editaveis pelo admin (registo unico). Campo vazio = usa o valor por omissao
+    do ambiente (PLATFORM_COMMISSION_PERCENT, QUALITY_*). Pagamentos ja emitidos guardam a comissao que
+    tinham na altura, por isso mudar a percentagem so afeta pagamentos futuros."""
+    comissao_percentagem = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)])  # BR-06
+    qualidade_limiar_alerta = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)  # BR-02
+    qualidade_limiar_suspensao = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    qualidade_minimo_avaliacoes = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    atualizado_por = models.ForeignKey(Utilizador, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def obter(cls):
+        return cls.objects.get_or_create(pk=1)[0]

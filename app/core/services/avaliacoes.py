@@ -1,11 +1,12 @@
 from decimal import Decimal
 
-from decouple import config
+
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Avg, Count
 
 from ..models import Avaliacao, PersonalTrainer, Sessao
+from .configuracao import valor_efetivo
 from . import notificacoes
 from .sessoes import ErroNegocio
 
@@ -47,15 +48,15 @@ def avaliar_sessao(sessao, autor, classificacao, comentario=""):
 
 # --- BR-02: qualidade do PT (Verificado -> Em Alerta -> Suspenso) ---
 def limiar_alerta():
-    return Decimal(config("QUALITY_ALERT_THRESHOLD", default="4.0"))
+    return valor_efetivo("qualidade_limiar_alerta")
 
 
 def limiar_suspensao():
-    return Decimal(config("QUALITY_SUSPEND_THRESHOLD", default="3.0"))
+    return valor_efetivo("qualidade_limiar_suspensao")
 
 
 def minimo_avaliacoes():
-    return int(config("QUALITY_MIN_REVIEWS", default="5"))
+    return valor_efetivo("qualidade_minimo_avaliacoes")
 
 
 @transaction.atomic

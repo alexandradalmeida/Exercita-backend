@@ -92,6 +92,6 @@ class ComissaoTestCase(TestCase):
         self.assertEqual(comissao, Decimal("5.00"))
         self.assertEqual(comissao + liquido, Decimal("33.33"))
 
-    @patch("core.services.pagamentos.config", return_value="10")
+    @patch("core.services.configuracao.config", return_value="10")
     def test_percentagem_configuravel(self, _):
         self.assertEqual(calcular_comissao("200")[0], Decimal("20.00"))

@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
 from .views_admin import UtilizadorAdminViewSet
+from .views_configuracao import ConfiguracaoView
 from .views_faturacao import DocumentoFinanceiroViewSet
 from .views_progresso import HistoricoTreinoViewSet, MetricaFisicaViewSet, ResumoProgressoView, WearableIngestaoView
 from .views_parcerias import (
@@ -76,6 +77,7 @@ urlpatterns = [
     path("partnerships/<int:pk>/<str:acao>/", ParceriaAcaoView.as_view(), name="parceria_acao"),
     path("progress/summary/", ResumoProgressoView.as_view(), name="progresso_resumo"),
     path("progress/wearables/ingest/", WearableIngestaoView.as_view(), name="wearables_ingestao"),
+    path("admin/config/", ConfiguracaoView.as_view(), name="admin_config"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),

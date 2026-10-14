@@ -67,7 +67,7 @@ class DistribuicoesTestCase(TestCase):
         self.assertIsNone(dar_notas(pt, [1] * 6))
         self.assertEqual(pt.estado_verificacao, E.PENDENTE)
 
-    @patch("core.services.avaliacoes.config", side_effect=lambda k, default=None: {
+    @patch("core.services.configuracao.config", side_effect=lambda k, default=None: {
         "QUALITY_ALERT_THRESHOLD": "4.5", "QUALITY_SUSPEND_THRESHOLD": "4.0", "QUALITY_MIN_REVIEWS": "2"}[k])
     def test_limiares_configuraveis(self, _):
         self.assertEqual(dar_notas(self.pt, [4, 3]), E.SUSPENSO)

@@ -1,13 +1,13 @@
 from decimal import ROUND_HALF_UP, Decimal
 
-from decouple import config
+from .configuracao import valor_efetivo
 
 CENTIMO = Decimal("0.01")
 
 
 def percentagem_comissao():
     """BR-06: percentagem retida pela plataforma (por omissao 15%)."""
-    return Decimal(config("PLATFORM_COMMISSION_PERCENT", default="15"))
+    return valor_efetivo("comissao_percentagem")
 
 
 def calcular_comissao(valor):
