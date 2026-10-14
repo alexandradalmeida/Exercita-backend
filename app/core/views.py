@@ -228,6 +228,9 @@ class GoogleCallbackView(APIView):
             }
         )
 
+        if utilizador.suspenso:
+            return Response({"mensagem": "Conta suspensa pela administracao."}, status=status.HTTP_403_FORBIDDEN)
+
         if criado and utilizador.tipo == Utilizador.TipoUtilizador.ALUNO:
             UtilizadorAluno.objects.create(utilizador=utilizador)
 
@@ -274,6 +277,9 @@ class AppleLoginView(APIView):
                 "is_active": True,  # email ja verificado pela Apple
             }
         )
+
+        if utilizador.suspenso:
+            return Response({"mensagem": "Conta suspensa pela administracao."}, status=status.HTTP_403_FORBIDDEN)
 
         if criado:
             UtilizadorAluno.objects.create(utilizador=utilizador)

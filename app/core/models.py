@@ -15,6 +15,10 @@ class Utilizador(AbstractUser):
     tipo = models.CharField(max_length=20, choices=TipoUtilizador.choices)
     telefone = EncryptedCharField(blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
+    # suspensao pela administracao (UC-15); independente de is_active, que reflete a confirmacao do email
+    suspenso = models.BooleanField(default=False)
+    motivo_suspensao = models.TextField(blank=True)
+    data_suspensao = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.username

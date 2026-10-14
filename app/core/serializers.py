@@ -43,6 +43,8 @@ class LoginSerializer(serializers.Serializer):
         utilizador = authenticate(username=data["username"], password=data["password"])
         if not utilizador:
             raise serializers.ValidationError("Credenciais invalidas.")
+        if utilizador.suspenso:
+            raise serializers.ValidationError("Conta suspensa pela administracao.")
         if not utilizador.is_active:
             raise serializers.ValidationError("Conta ainda nao confirmada. Verifique o seu email.")
         data["utilizador"] = utilizador
