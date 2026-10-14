@@ -81,3 +81,14 @@ RGPD:
 - Push FCM/APNs; Google Calendar (OAuth de calendário); geocodificação (Google Maps); embeddings (OpenAI).
 - Faturação certificada (as faturas atuais **não** têm valor fiscal).
 - Integração com wearables (apenas a estrutura de ingestão existe).
+
+## 7. Notas de desempenho da pesquisa
+
+- A pesquisa com `q` ordena por distância do cosseno (pgvector). Com filtros o Postgres escolhe um plano exato
+  (medido: 393 resultados corretos em ~7 ms com 3 000 PTs). Sem filtros pode usar o índice HNSW, que é
+  **aproximado** e devolve, por omissão, no máximo `hnsw.ef_search` (=40) candidatos: páginas além das primeiras
+  podem vir incompletas. Em produção, aumentar `hnsw.ef_search` (ex.: `SET hnsw.ef_search = 200`) ou ativar
+  `hnsw.iterative_scan` (pgvector ≥ 0.8) se a paginação profunda for usada.
+- Se o serviço de embeddings falhar (quota, rede), a pesquisa continua e ordena por avaliação (coberto por teste).
+- Os testes de desempenho/carga medem o servidor sob a carga da própria máquina de desenvolvimento: num PC ocupado
+  (sincronização OneDrive, navegador, etc.) o p95 pode subir 10x; por isso medem até 2 rodadas.

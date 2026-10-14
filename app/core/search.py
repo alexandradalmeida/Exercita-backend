@@ -1,10 +1,14 @@
 from django.db.models import Count, F, FloatField, IntegerField, OuterRef, Subquery, Sum
 from django.db.models.functions import Cast, Coalesce
 
+import logging
+
 from pgvector.django import CosineDistance
 
 from .models import PersonalTrainer, SlotDisponibilidade
 from .services.embeddings import obter_gerador
+
+logger = logging.getLogger(__name__)
 
 
 def pesquisar_trainers(params, gerador=None):
@@ -44,10 +48,14 @@ def pesquisar_trainers(params, gerador=None):
         qs = qs.filter(pk__in=livres.values("personal_trainer"))
 
     if consulta := (params.get("q") or "").strip():
-        vetor = (gerador or obter_gerador()).gerar(consulta)
-        # PTs sem embedding ficam no fim (nulls_last); desempate por avaliacao
-        return qs.annotate(distancia=CosineDistance("embedding", vetor)).order_by(
-            F("distancia").asc(nulls_last=True), "-avaliacao_media", "id"
-        )
+        try:
+            vetor = (gerador or obter_gerador()).gerar(consulta)
+        except Exception:  # servico externo em baixo, sem quota, timeout...: a pesquisa continua sem relevancia
+            logger.exception("falha ao gerar o embedding da consulta; a ordenar por avaliacao")
+        else:
+            # PTs sem embedding ficam no fim (nulls_last); desempate por avaliacao
+            return qs.annotate(distancia=CosineDistance("embedding", vetor)).order_by(
+                F("distancia").asc(nulls_last=True), F("avaliacao_media").desc(nulls_last=True), "id"
+            )
 
-    return qs.order_by("-avaliacao_media", "id")
+    return qs.order_by(F("avaliacao_media").desc(nulls_last=True), "id")  # sem avaliacoes ficam no fim

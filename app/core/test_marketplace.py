@@ -299,3 +299,39 @@ class MatchingEmbeddingsTestCase(TestCase):
         gerador.gerar.return_value = [1.0] + [0.0] * 1535
         list(pesquisar_trainers({"q": "x"}, gerador=gerador))
         gerador.gerar.assert_called_once_with("x")
+
+
+class PesquisaSemServicoDeEmbeddingsTestCase(TestCase):
+    """Se o gerador de embeddings falhar, a pesquisa continua a responder (ordenada por avaliacao)."""
+
+    def test_falha_do_gerador_nao_derruba_a_pesquisa(self):
+        from unittest.mock import patch
+
+        import requests
+        client = APIClient()
+        client.force_authenticate(Utilizador.objects.create_user(
+            username="semembed", password="SenhaForte123!", tipo="aluno", is_active=True))
+        bom = criar_pt("emb_bom", especialidade="Yoga")
+        criar_avaliacao(bom, 5)
+        criar_pt("emb_outro", especialidade="Boxe")
+        with patch("core.search.obter_gerador") as fabrica:
+            fabrica.return_value.gerar.side_effect = requests.HTTPError("429 Too Many Requests")
+            with self.assertLogs("core.search", level="ERROR"):
+                r = client.get("/api/v1/trainers/", {"q": "yoga"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["results"][0]["id"], bom.id)  # melhor avaliado primeiro
+        self.assertEqual(r.data["count"], 2)
+
+
+class OrdenacaoPorAvaliacaoTestCase(TestCase):
+    def test_pts_sem_avaliacoes_ficam_depois_dos_avaliados(self):
+        client = APIClient()
+        client.force_authenticate(Utilizador.objects.create_user(
+            username="ordem", password="SenhaForte123!", tipo="aluno", is_active=True))
+        sem = criar_pt("ord_sem")
+        medio = criar_pt("ord_medio")
+        criar_avaliacao(medio, 3)
+        top = criar_pt("ord_top")
+        criar_avaliacao(top, 5)
+        ids = [t["id"] for t in client.get("/api/v1/trainers/").data["results"]]
+        self.assertEqual(ids, [top.id, medio.id, sem.id])
