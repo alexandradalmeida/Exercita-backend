@@ -546,3 +546,56 @@ class RemuneracaoParceria(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["parceria", "mes"], name="uma_remuneracao_por_mes")]
         ordering = ["-mes"]
+
+
+class MetricaFisica(models.Model):
+    """Medicoes corporais do aluno ao longo do tempo (UC-14)."""
+
+    class Fonte(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        WEARABLE = "wearable", "Wearable"
+
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="metricas_fisicas")
+    data = models.DateField()
+    peso_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True,
+                                  validators=[MinValueValidator(1), MaxValueValidator(500)])
+    altura_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True,
+                                    validators=[MinValueValidator(30), MaxValueValidator(272)])
+    gordura_percentagem = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True,
+                                              validators=[MinValueValidator(1), MaxValueValidator(75)])
+    cintura_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, validators=[MinValueValidator(1)])
+    peito_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, validators=[MinValueValidator(1)])
+    anca_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, validators=[MinValueValidator(1)])
+    braco_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, validators=[MinValueValidator(1)])
+    notas = models.TextField(blank=True)
+    fonte = models.CharField(max_length=20, choices=Fonte.choices, default=Fonte.MANUAL)
+    origem_externa_id = models.CharField(max_length=100, blank=True)  # id no wearable, para deduplicar
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    CAMPOS_MEDIDA = ("peso_kg", "altura_cm", "gordura_percentagem", "cintura_cm", "peito_cm", "anca_cm", "braco_cm")
+
+    class Meta:
+        ordering = ["-data", "-id"]
+        constraints = [models.UniqueConstraint(
+            fields=["aluno", "fonte", "origem_externa_id"], condition=~models.Q(origem_externa_id=""),
+            name="metrica_externa_unica")]
+
+
+class HistoricoTreino(models.Model):
+    """Treino realizado pelo aluno (dentro ou fora da plataforma)."""
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="historico_treinos")
+    sessao = models.ForeignKey(Sessao, on_delete=models.SET_NULL, null=True, blank=True, related_name="treinos")
+    data = models.DateField()
+    tipo = models.CharField(max_length=100)  # ex.: musculacao, corrida
+    duracao_minutos = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(1440)])
+    calorias_gastas = models.PositiveIntegerField(null=True, blank=True)
+    notas = models.TextField(blank=True)
+    fonte = models.CharField(max_length=20, choices=MetricaFisica.Fonte.choices, default=MetricaFisica.Fonte.MANUAL)
+    origem_externa_id = models.CharField(max_length=100, blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-data", "-id"]
+        constraints = [models.UniqueConstraint(
+            fields=["aluno", "fonte", "origem_externa_id"], condition=~models.Q(origem_externa_id=""),
+            name="treino_externo_unico")]

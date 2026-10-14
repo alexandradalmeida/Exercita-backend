@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, NotificacoesMarcarLidasView
 from .views_ginasios import GinasioViewSet
 from .views_faturacao import DocumentoFinanceiroViewSet
+from .views_progresso import HistoricoTreinoViewSet, MetricaFisicaViewSet, ResumoProgressoView, WearableIngestaoView
 from .views_parcerias import (
     MinhaParceriaView, ParceriaAcaoView, ParceriasAdminListView, RemuneracaoPagaView,
 )
@@ -33,6 +34,8 @@ router.register("perfil/personal-trainer/slots", SlotDisponibilidadeViewSet, bas
 router.register("gyms", GinasioViewSet, basename="ginasio")
 router.register("shop/products", ProdutoViewSet, basename="produto")
 router.register("shop/orders", EncomendaViewSet, basename="encomenda")
+router.register("progress/metrics", MetricaFisicaViewSet, basename="metrica_fisica")
+router.register("progress/workouts", HistoricoTreinoViewSet, basename="historico_treino")
 router.register("billing/documents", DocumentoFinanceiroViewSet, basename="documento")
 router.register("nutrition/plans", PlanoNutricionalViewSet, basename="plano_nutricional")
 router.register("nutrition/logs", RegistoRefeicaoViewSet, basename="registo_refeicao")
@@ -69,6 +72,8 @@ urlpatterns = [
     path("partnerships/me/", MinhaParceriaView.as_view(), name="parceria_minha"),
     path("partnerships/payouts/<int:pk>/pay/", RemuneracaoPagaView.as_view(), name="remuneracao_paga"),
     path("partnerships/<int:pk>/<str:acao>/", ParceriaAcaoView.as_view(), name="parceria_acao"),
+    path("progress/summary/", ResumoProgressoView.as_view(), name="progresso_resumo"),
+    path("progress/wearables/ingest/", WearableIngestaoView.as_view(), name="wearables_ingestao"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
