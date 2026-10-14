@@ -119,6 +119,11 @@ def aplicar():
         setattr(serializer, nome, extend_schema_field(tipo)(getattr(serializer, nome)))
     from .serializers_progresso import MetricaFisicaSerializer
     MetricaFisicaSerializer.get_imc = extend_schema_field(OpenApiTypes.FLOAT)(MetricaFisicaSerializer.get_imc)
+    # --- creditos ---
+    from . import views_creditos
+    anotar(views_creditos.CreditosView, "get", responses=OBJETO, tags=["creditos"],
+           description="Saldo utilizavel, proxima expiracao e historico de creditos do aluno.")
+
     # --- RGPD ---
     from . import views_rgpd
     anotar(views_rgpd.ExportarDadosView, "get", responses={(200, "application/json"): OBJETO}, tags=["rgpd"],

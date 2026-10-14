@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
@@ -7,7 +8,7 @@ from decimal import Decimal
 
 from .services.geocoding import obter_geocoder
 
-from .models import Avaliacao, Certificacao, DocumentoFinanceiro, ParceriaPT, RemuneracaoParceria, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
+from .models import CreditoAluno, Avaliacao, Certificacao, DocumentoFinanceiro, ParceriaPT, RemuneracaoParceria, Encomenda, EventoEncomenda, Ginasio, ItemCarrinho, ItemEncomenda, Nutricionista, PlanoNutricional, Produto, Refeicao, RegistoRefeicao, ReservaGinasio, Notificacao, Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador, UtilizadorAluno
 
 
 class RegistoSerializer(serializers.ModelSerializer):
@@ -492,3 +493,15 @@ class RemuneracaoParceriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = RemuneracaoParceria
         fields = ["id", "parceria", "mes", "valor", "estado", "data_pagamento"]
+
+
+class CreditoAlunoSerializer(serializers.ModelSerializer):
+    expirado = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CreditoAluno
+        fields = ["id", "origem", "valor", "valor_restante", "data_criacao", "data_expiracao", "expirado"]
+        read_only_fields = fields
+
+    def get_expirado(self, obj) -> bool:
+        return obj.data_expiracao <= timezone.now()

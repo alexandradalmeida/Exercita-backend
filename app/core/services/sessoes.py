@@ -6,7 +6,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from ..models import Pagamento, PersonalTrainer, Sessao, SlotDisponibilidade
-from . import notificacoes
+from . import creditos, notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import calcular_comissao
 
@@ -110,7 +110,9 @@ def cancelar_sessao(sessao, user):
                 raise ErroNegocio("Falha ao solicitar o reembolso ao Multicaixa; tente novamente.", 502)
             pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)
             reembolsado = True
-        # aprovado sem direito a reembolso: fica retido ate decisao do admin (regra a confirmar)
+        elif pagamento.estado == Pagamento.EstadoPagamento.APROVADO:
+            # sem direito a reembolso: o valor fica retido pela plataforma e converte-se em credito do aluno
+            creditos.gerar_credito_cancelamento(pagamento)
     notificacoes.sessao_cancelada(sessao, user, reembolsado)
     return reembolsado
 

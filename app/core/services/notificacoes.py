@@ -7,6 +7,7 @@ import logging
 
 from django.core.mail import send_mail
 from django.db import transaction
+from django.utils import timezone
 
 from ..models import Notificacao
 
@@ -173,3 +174,17 @@ def parceria_atualizada(parceria, descricao):
 def remuneracao_paga(remuneracao):
     notificar(remuneracao.parceria.personal_trainer.utilizador,
               f"A remuneracao de {remuneracao.mes:%m/%Y} ({remuneracao.valor} Kz) foi paga.", "Remuneracao paga")
+
+
+# --- creditos ---
+def credito_gerado(credito):
+    quando = timezone.localtime(credito.data_expiracao).strftime("%d/%m/%Y")
+    notificar(credito.aluno.utilizador,
+              f"Recebeu {credito.valor} Kz de credito (cancelamento tardio), valido ate {quando}. "
+              "Pode usa-lo no proximo pagamento.", "Credito na sua conta")
+
+
+def credito_a_expirar(credito):
+    quando = timezone.localtime(credito.data_expiracao).strftime("%d/%m/%Y")
+    notificar(credito.aluno.utilizador,
+              f"O seu credito de {credito.valor_restante} Kz expira em {quando}.", "Credito a expirar")

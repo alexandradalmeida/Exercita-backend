@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import Encomenda, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
+from .models import CreditoAluno, Encomenda, PersonalTrainer, Sessao, SlotDisponibilidade, Utilizador
 from .permissions import IsAluno
 from .serializers import (
     AvaliacaoSerializer, CriarAvaliacaoSerializer,
@@ -80,6 +80,9 @@ class SessaoDetalheView(generics.RetrieveUpdateAPIView):
         try:
             if dados["acao"] == "cancelar":
                 extra["reembolsado"] = cancelar_sessao(sessao, request.user)
+                credito = CreditoAluno.objects.filter(pagamento_origem__sessao=sessao).first()
+                if credito is not None:  # cancelamento tardio: valor retido convertido em credito
+                    extra["credito_gerado"] = {"valor": credito.valor, "data_expiracao": credito.data_expiracao}
             elif dados["acao"] == "reclamar":
                 reclamar_sessao(sessao, request.user, dados.get("motivo", ""))
             elif dados["acao"] == "reagendar":

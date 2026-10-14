@@ -221,6 +221,7 @@ class Pagamento(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_aprovacao = models.DateTimeField(null=True, blank=True)
     data_libertacao = models.DateTimeField(null=True, blank=True)
+    convertido_em_credito = models.BooleanField(default=False)  # retido por cancelamento tardio e devolvido como credito
 
     class Meta:
         indexes = [models.Index(fields=["estado"], name="pagamento_estado_idx")]
@@ -641,3 +642,26 @@ class ConfiguracaoPlataforma(models.Model):
     @classmethod
     def obter(cls):
         return cls.objects.get_or_create(pk=1)[0]
+
+
+class CreditoAluno(models.Model):
+    """Credito na conta do aluno (por omissao valido 90 dias), usavel em novos pagamentos.
+    Origem principal: cancelamento tardio de uma sessao paga (o valor fica retido e converte-se em credito)."""
+
+    class Origem(models.TextChoices):
+        CANCELAMENTO_TARDIO = "cancelamento_tardio", "Cancelamento tardio"
+        ESTORNO = "estorno", "Estorno de credito usado"
+
+    aluno = models.ForeignKey(UtilizadorAluno, on_delete=models.CASCADE, related_name="creditos")
+    origem = models.CharField(max_length=30, choices=Origem.choices)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    valor_restante = models.DecimalField(max_digits=10, decimal_places=2)
+    pagamento_origem = models.OneToOneField(
+        "Pagamento", on_delete=models.SET_NULL, null=True, blank=True, related_name="credito_gerado")
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_expiracao = models.DateTimeField()
+    expiracao_notificada = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["data_expiracao", "id"]
+        indexes = [models.Index(fields=["aluno", "data_expiracao"], name="credito_aluno_expira_idx")]
