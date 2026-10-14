@@ -103,12 +103,15 @@ def cancelar_sessao(sessao, user):
     for pagamento in sessao.pagamentos.select_for_update():
         if pagamento.estado == Pagamento.EstadoPagamento.PENDENTE:
             pagamento.transitar(Pagamento.EstadoPagamento.RECUSADO)  # nunca chegou a ser pago
+            creditos.restituir_creditos(pagamento)
         elif pagamento.estado == Pagamento.EstadoPagamento.APROVADO and reembolsar:
             try:
-                obter_gateway().reembolsar(pagamento)
+                if pagamento.valor_a_pagar > 0:  # so a parte paga no gateway e estornada la
+                    obter_gateway().reembolsar(pagamento)
             except GatewayErro:
                 raise ErroNegocio("Falha ao solicitar o reembolso ao Multicaixa; tente novamente.", 502)
             pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)
+            creditos.restituir_creditos(pagamento)  # a parte paga com credito volta como credito
             reembolsado = True
         elif pagamento.estado == Pagamento.EstadoPagamento.APROVADO:
             # sem direito a reembolso: o valor fica retido pela plataforma e converte-se em credito do aluno

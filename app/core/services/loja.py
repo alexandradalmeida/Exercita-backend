@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models import F
 
 from ..models import Carrinho, Encomenda, EventoEncomenda, ItemCarrinho, ItemEncomenda, Pagamento, Produto
-from . import notificacoes
+from . import creditos, notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .sessoes import ErroNegocio
 
@@ -108,12 +108,15 @@ def cancelar_encomenda(encomenda):
     for pagamento in encomenda.pagamentos.select_for_update():
         if pagamento.estado == Pagamento.EstadoPagamento.PENDENTE:
             pagamento.transitar(Pagamento.EstadoPagamento.RECUSADO)
+            creditos.restituir_creditos(pagamento)
         elif pagamento.estado == Pagamento.EstadoPagamento.APROVADO:
             try:
-                obter_gateway().reembolsar(pagamento)
+                if pagamento.valor_a_pagar > 0:  # so a parte paga no gateway e estornada la
+                    obter_gateway().reembolsar(pagamento)
             except GatewayErro:
                 raise ErroNegocio("Falha ao solicitar o reembolso ao Multicaixa; tente novamente.", 502)
             pagamento.transitar(Pagamento.EstadoPagamento.REEMBOLSADO)
+            creditos.restituir_creditos(pagamento)  # a parte paga com credito volta como credito
             reembolsado = True
     encomenda.transitar(E.CANCELADA)
     repor_stock(encomenda)

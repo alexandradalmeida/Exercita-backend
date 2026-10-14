@@ -7,7 +7,7 @@ from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 
 from ..models import (
-    Avaliacao, Encomenda, Pagamento, ParceriaPT, PersonalTrainer, RemuneracaoParceria, Sessao, Utilizador,
+    Avaliacao, CreditoAluno, Encomenda, Pagamento, ParceriaPT, PersonalTrainer, RemuneracaoParceria, Sessao, Utilizador,
 )
 
 P = Pagamento.EstadoPagamento
@@ -39,12 +39,14 @@ def relatorio_plataforma(de=None, ate=None):
     """RelatorioPlataforma (UC-15): utilizadores, sessoes e receita. As datas filtram o que aconteceu no periodo
     (registos novos, sessoes agendadas, pagamentos aprovados); `utilizadores.total` e sempre o total atual."""
     inicio, fim = intervalo(de, ate)
+    agora = timezone.now()
 
     utilizadores = Utilizador.objects.all()
     novos = _no_intervalo(utilizadores, "data_criacao", inicio, fim)
     sessoes = _no_intervalo(Sessao.objects.all(), "data_hora", inicio, fim)
     pagamentos = _no_intervalo(Pagamento.objects.filter(data_aprovacao__isnull=False), "data_aprovacao", inicio, fim)
-    recebidos = pagamentos.filter(estado__in=RECEBIDOS)
+    # pagamentos retidos e convertidos em credito nao sao receita: sao uma divida ao aluno ate o credito ser usado
+    recebidos = pagamentos.filter(estado__in=RECEBIDOS, convertido_em_credito=False)
     sessoes_pag = recebidos.filter(sessao__isnull=False)
     loja_pag = recebidos.filter(encomenda__isnull=False)
     reembolsos = pagamentos.filter(estado=P.REEMBOLSADO)
@@ -89,6 +91,9 @@ def relatorio_plataforma(de=None, ate=None):
             "vendas_loja": vendas_loja,
             "reembolsado": soma(reembolsos, "valor"),
             "custo_parcerias_registado": custo_parcerias,
+            "credito_utilizado": soma(recebidos, "credito_aplicado"),
+            "credito_em_aberto": soma(CreditoAluno.objects.filter(data_expiracao__gt=agora), "valor_restante"),
+            "credito_expirado_nao_usado": soma(CreditoAluno.objects.filter(data_expiracao__lte=agora), "valor_restante"),
             "receita_plataforma": comissoes + vendas_loja,
             "resultado_apos_parcerias": comissoes + vendas_loja - custo_parcerias,
         },
@@ -128,10 +133,12 @@ def csv_pagamentos(de=None, ate=None):
             timezone.localtime(p.data_aprovacao).strftime("%Y-%m-%d %H:%M"),
             origem.aluno.utilizador.username if origem else "",
             p.sessao.personal_trainer.utilizador.username if p.sessao_id else "",
-            p.valor, p.comissao_plataforma, p.valor_liquido_pt, p.estado, p.referencia_multicaixa, faturas,
+            p.valor, p.credito_aplicado, p.comissao_plataforma, p.valor_liquido_pt, p.estado,
+            "sim" if p.convertido_em_credito else "", p.referencia_multicaixa, faturas,
         ])
     return _csv(["pagamento_id", "tipo", "origem_id", "data_aprovacao", "cliente", "personal_trainer", "valor",
-                 "comissao_plataforma", "valor_liquido_pt", "estado", "referencia_multicaixa", "fatura"], linhas)
+                 "credito_aplicado", "comissao_plataforma", "valor_liquido_pt", "estado", "convertido_em_credito",
+                 "referencia_multicaixa", "fatura"], linhas)
 
 
 def csv_parcerias(de=None, ate=None):

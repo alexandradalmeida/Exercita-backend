@@ -15,7 +15,7 @@ O schema é validado em cada `manage.py test` (`core/test_documentacao.py`, falh
 
 Ver `.env.example`. Obrigatórias: `DJANGO_SECRET_KEY` (≥ 50 caracteres, única), `ALLOWED_HOSTS` (sem `*`),
 `POSTGRES_*`, `FIELD_ENCRYPTION_KEY`. A aplicação **recusa arrancar** em produção se a chave for fraca ou
-`ALLOWED_HOSTS` estiver vazio. Recomendadas: `REDIS_URL` (cache partilhada), `EMAIL_*`, `POSTGRES_SSLMODE=require`.
+`ALLOWED_HOSTS` estiver vazio. Opcional: `CREDIT_VALIDITY_DAYS` (validade do crédito por cancelamento tardio, 90 por omissão). Recomendadas: `REDIS_URL` (cache partilhada), `EMAIL_*`, `POSTGRES_SSLMODE=require`.
 
 Credenciais externas ainda por obter (ver secção 6): Multicaixa Express, Google OAuth, Apple Sign In, FCM/APNs,
 chave de geocodificação, `OPENAI_API_KEY` (embeddings).
@@ -27,6 +27,7 @@ chave de geocodificação, `OPENAI_API_KEY` (embeddings).
 | `libertar_pagamentos` | de hora a hora | BR-03: liberta pagamentos de sessões realizadas há > 24 h sem reclamação |
 | `enviar_lembretes` | de hora a hora | lembretes de sessões nas próximas 24 h |
 | `gerar_remuneracoes` | dia 1 de cada mês | BR-04: regista a remuneração mensal dos PTs parceiros |
+| `avisar_creditos` | diário | avisa os alunos dos créditos que expiram nos próximos 7 dias |
 
 Executar como *cron job* / tarefa agendada do orquestrador, com a mesma imagem e variáveis de ambiente.
 As migrações (`python manage.py migrate`) correm como passo do deploy, não em cada réplica.
@@ -92,3 +93,18 @@ RGPD:
 - Se o serviço de embeddings falhar (quota, rede), a pesquisa continua e ordena por avaliação (coberto por teste).
 - Os testes de desempenho/carga medem o servidor sob a carga da própria máquina de desenvolvimento: num PC ocupado
   (sincronização OneDrive, navegador, etc.) o p95 pode subir 10x; por isso medem até 2 rodadas.
+
+## 8. Crédito do aluno (cancelamento tardio)
+
+- Se o **aluno** cancela dentro da janela do PT (`janela_cancelamento_horas`, 24 h por omissão), o pagamento fica
+  `aprovado` e **retido pela plataforma**, e o aluno recebe um crédito do valor total, válido 90 dias
+  (`GET /api/v1/credits/`). O PT não recebe nada nesse caso (a decidir se deve haver compensação).
+- Usa-se com `POST /api/v1/payments/ {..., "usar_credito": true}`: o crédito que expira primeiro é consumido
+  primeiro; o gateway cobra só o restante (`valor_a_pagar`). Se o crédito cobrir tudo, o pagamento é aprovado de
+  imediato (referência `CREDITO`, sem gateway).
+- Se o pagamento falhar, for cancelado ou reembolsado, o crédito consumido volta (como crédito novo de 90 dias se o
+  original já tiver expirado). O estorno no gateway cobre apenas a parte paga em dinheiro.
+- Contabilidade: um pagamento convertido em crédito **não conta como receita**; aparece como `credito_em_aberto`
+  no relatório até ser usado. Créditos expirados e não usados aparecem em `credito_expirado_nao_usado`; o tratamento
+  contabilístico/fiscal desse valor tem de ser validado com a contabilidade.
+- Eliminar a conta é bloqueado enquanto houver crédito válido por utilizar.

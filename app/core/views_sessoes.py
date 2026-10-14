@@ -97,18 +97,21 @@ class SessaoDetalheView(generics.RetrieveUpdateAPIView):
 
 
 class IniciarPagamentoView(APIView):
-    """POST /api/v1/payments/ {"sessao_id": N} ou {"encomenda_id": N} - inicia a transacao no Multicaixa Express."""
+    """POST /api/v1/payments/ {"sessao_id": N} ou {"encomenda_id": N}, opcionalmente "usar_credito": true.
+    Inicia a transacao no Multicaixa Express; com credito do aluno, o gateway cobra so o que falta (se o
+    credito cobrir tudo o pagamento e aprovado de imediato)."""
     permission_classes = [IsAluno]
 
     def post(self, request):
         aluno = request.user.perfil_aluno
+        usar_credito = request.data.get("usar_credito") in (True, "true", "True", 1, "1")
         try:
             if request.data.get("encomenda_id") is not None:
                 encomenda = get_object_or_404(Encomenda, pk=request.data["encomenda_id"], aluno=aluno)
-                pagamento = iniciar_pagamento_encomenda(encomenda)
+                pagamento = iniciar_pagamento_encomenda(encomenda, usar_credito)
             else:
                 sessao = get_object_or_404(Sessao, pk=request.data.get("sessao_id"), aluno=aluno)
-                pagamento = iniciar_pagamento(sessao)
+                pagamento = iniciar_pagamento(sessao, usar_credito)
         except PagamentoErro as erro:
             return Response({"mensagem": erro.mensagem}, status=erro.codigo)
         return Response(PagamentoSerializer(pagamento).data, status=status.HTTP_201_CREATED)

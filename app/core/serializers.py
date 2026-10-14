@@ -192,10 +192,13 @@ class TrainerPerfilPublicoSerializer(serializers.ModelSerializer):
 
 
 class PagamentoSerializer(serializers.ModelSerializer):
+    valor_a_pagar = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
     class Meta:
         model = Pagamento
         fields = [
-            "id", "sessao", "encomenda", "valor", "comissao_plataforma", "valor_liquido_pt", "estado",
+            "id", "sessao", "encomenda", "valor", "credito_aplicado", "valor_a_pagar", "comissao_plataforma",
+            "valor_liquido_pt", "convertido_em_credito", "estado",
             "referencia_multicaixa", "data_criacao", "data_aprovacao", "data_libertacao",
         ]
         read_only_fields = fields

@@ -222,9 +222,15 @@ class Pagamento(models.Model):
     data_aprovacao = models.DateTimeField(null=True, blank=True)
     data_libertacao = models.DateTimeField(null=True, blank=True)
     convertido_em_credito = models.BooleanField(default=False)  # retido por cancelamento tardio e devolvido como credito
+    credito_aplicado = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # parte paga com credito do aluno
 
     class Meta:
         indexes = [models.Index(fields=["estado"], name="pagamento_estado_idx")]
+
+    @property
+    def valor_a_pagar(self):
+        """O que falta cobrar pelo gateway depois de descontado o credito aplicado."""
+        return self.valor - self.credito_aplicado
 
     def pode_transitar(self, novo_estado):
         return novo_estado in self.TRANSICOES[self.estado]
@@ -665,3 +671,11 @@ class CreditoAluno(models.Model):
     class Meta:
         ordering = ["data_expiracao", "id"]
         indexes = [models.Index(fields=["aluno", "data_expiracao"], name="credito_aluno_expira_idx")]
+
+
+class UsoCredito(models.Model):
+    """Quanto de cada credito foi consumido por um pagamento (permite repor se o pagamento falhar ou for desfeito)."""
+    credito = models.ForeignKey(CreditoAluno, on_delete=models.CASCADE, related_name="usos")
+    pagamento = models.ForeignKey(Pagamento, on_delete=models.CASCADE, related_name="usos_credito")
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    restituido = models.BooleanField(default=False)

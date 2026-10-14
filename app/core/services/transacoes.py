@@ -4,24 +4,56 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Encomenda, Pagamento, Sessao
-from . import faturacao, loja, notificacoes
+from . import creditos, faturacao, loja, notificacoes
 from .multicaixa import GatewayErro, obter_gateway
 from .pagamentos import PagamentoErro
 
 E = Pagamento.EstadoPagamento
+REFERENCIA_CREDITO = "CREDITO"  # pagamento coberto integralmente por credito (sem gateway)
 
 
-def iniciar_pagamento(sessao):
-    """POST /payments: pede ao gateway uma referencia para o pagamento pendente da sessao."""
-    if sessao.estado != Sessao.EstadoSessao.AGENDADA:
-        raise PagamentoErro("So se pode pagar uma sessao agendada.", 409)
-    pagamento = sessao.pagamentos.filter(estado=E.PENDENTE).first()
-    if pagamento is None:
-        raise PagamentoErro("Nao existe pagamento pendente para esta sessao.", 409)
-    if not pagamento.referencia_multicaixa:  # idempotente: reutiliza a referencia ja emitida
+def _emitir_referencia(pagamento, usar_credito):
+    """Aplica (opcionalmente) o credito do aluno e pede a referencia ao gateway pelo valor que falta.
+    Se o credito cobre tudo, o pagamento e aprovado de imediato, sem passar pelo gateway.
+    Idempotente: com a referencia ja emitida nao muda nada (nem o valor a cobrar)."""
+    if pagamento.referencia_multicaixa:
+        if usar_credito and pagamento.credito_aplicado == 0:
+            raise PagamentoErro("A referencia de pagamento ja foi emitida sem credito; nao pode ser alterada.", 409)
+        return pagamento
+    if usar_credito:
+        creditos.aplicar_credito(pagamento)
+    if pagamento.valor_a_pagar <= 0:
+        pagamento.referencia_multicaixa = REFERENCIA_CREDITO
+        pagamento.save(update_fields=["referencia_multicaixa"])
+        aprovar_pagamento(pagamento)
+    else:
+        # o gateway deve cobrar `pagamento.valor_a_pagar` (valor menos o credito aplicado)
         pagamento.referencia_multicaixa = obter_gateway().iniciar_transacao(pagamento)
         pagamento.save(update_fields=["referencia_multicaixa"])
     return pagamento
+
+
+@transaction.atomic
+def iniciar_pagamento(sessao, usar_credito=False):
+    """POST /payments: pede ao gateway uma referencia para o pagamento pendente da sessao."""
+    if sessao.estado != Sessao.EstadoSessao.AGENDADA:
+        raise PagamentoErro("So se pode pagar uma sessao agendada.", 409)
+    pagamento = sessao.pagamentos.select_for_update().filter(estado__in=[E.PENDENTE, E.APROVADO]).first()
+    if pagamento is None or (pagamento.estado == E.APROVADO and pagamento.referencia_multicaixa != REFERENCIA_CREDITO):
+        raise PagamentoErro("Nao existe pagamento pendente para esta sessao.", 409)
+    return _emitir_referencia(pagamento, usar_credito)
+
+
+def aprovar_pagamento(pagamento):
+    """Passa o pagamento a aprovado e dispara o que depende disso (documentos, encomenda paga, avisos)."""
+    pagamento.transitar(E.APROVADO, data_aprovacao=timezone.now())
+    faturacao.emitir_documentos(pagamento)
+    if pagamento.encomenda_id:
+        encomenda = pagamento.encomenda
+        encomenda.transitar(Encomenda.Estado.PAGA)
+        notificacoes.encomenda_atualizada(encomenda, "paga e vai ser preparada")
+    else:
+        notificacoes.pagamento_aprovado(pagamento)
 
 
 @transaction.atomic
@@ -42,16 +74,10 @@ def processar_callback(pagamento_id, referencia, resultado):
         raise PagamentoErro(f"Pagamento ja se encontra '{pagamento.estado}'.", 409)
 
     if resultado == E.APROVADO:
-        pagamento.transitar(E.APROVADO, data_aprovacao=timezone.now())
-        faturacao.emitir_documentos(pagamento)
-        if pagamento.encomenda_id:
-            encomenda = pagamento.encomenda
-            encomenda.transitar(Encomenda.Estado.PAGA)
-            notificacoes.encomenda_atualizada(encomenda, "paga e vai ser preparada")
-        else:
-            notificacoes.pagamento_aprovado(pagamento)
+        aprovar_pagamento(pagamento)
     else:
         pagamento.transitar(E.RECUSADO)
+        creditos.restituir_creditos(pagamento)
         if pagamento.encomenda_id:
             loja.cancelar_encomenda(pagamento.encomenda)  # liberta o stock reservado
         else:
@@ -59,17 +85,15 @@ def processar_callback(pagamento_id, referencia, resultado):
     return pagamento, True
 
 
-def iniciar_pagamento_encomenda(encomenda):
+@transaction.atomic
+def iniciar_pagamento_encomenda(encomenda, usar_credito=False):
     """POST /payments {"encomenda_id": N}: referencia do gateway para o pagamento pendente da encomenda."""
     if encomenda.estado != Encomenda.Estado.PENDENTE_PAGAMENTO:
         raise PagamentoErro("So se pode pagar uma encomenda pendente de pagamento.", 409)
-    pagamento = encomenda.pagamentos.filter(estado=E.PENDENTE).first()
+    pagamento = encomenda.pagamentos.select_for_update().filter(estado=E.PENDENTE).first()
     if pagamento is None:
         raise PagamentoErro("Nao existe pagamento pendente para esta encomenda.", 409)
-    if not pagamento.referencia_multicaixa:
-        pagamento.referencia_multicaixa = obter_gateway().iniciar_transacao(pagamento)
-        pagamento.save(update_fields=["referencia_multicaixa"])
-    return pagamento
+    return _emitir_referencia(pagamento, usar_credito)
 
 
 @transaction.atomic

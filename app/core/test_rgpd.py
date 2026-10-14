@@ -218,3 +218,27 @@ class SaudeTestCase(TestCase):
 
     def test_so_get(self):
         self.assertEqual(self.client.post("/api/health/").status_code, 405)
+
+
+class ApagarContaComCreditoTestCase(TestCase):
+    def test_bloqueia_com_credito_por_utilizar(self):
+        from .models import CreditoAluno
+        aluno = aluno_completo("rgpd_credito")
+        CreditoAluno.objects.create(
+            aluno=aluno, origem="cancelamento_tardio", valor=Decimal("1000"), valor_restante=Decimal("1000"),
+            data_expiracao=timezone.now() + timedelta(days=30))
+        c = APIClient()
+        c.force_authenticate(aluno.utilizador)
+        r = c.delete(APAGAR, {"password": SENHA}, format="json")
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("credito", r.data["mensagem"])
+
+    def test_credito_expirado_nao_bloqueia(self):
+        from .models import CreditoAluno
+        aluno = aluno_completo("rgpd_credito2")
+        CreditoAluno.objects.create(
+            aluno=aluno, origem="cancelamento_tardio", valor=Decimal("1000"), valor_restante=Decimal("1000"),
+            data_expiracao=timezone.now() - timedelta(days=1))
+        c = APIClient()
+        c.force_authenticate(aluno.utilizador)
+        self.assertEqual(c.delete(APAGAR, {"password": SENHA}, format="json").status_code, 204)

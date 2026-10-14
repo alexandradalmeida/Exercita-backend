@@ -6,6 +6,7 @@ from ..models import (
     Avaliacao, Carrinho, Encomenda, Favorito, Notificacao, Pagamento, PersonalTrainer, ReservaGinasio, Sessao,
     HistoricoTreino, MetricaFisica, RegistoRefeicao, Utilizador,
 )
+from . import creditos
 from .administracao import revogar_sessoes
 from .sessoes import ErroNegocio
 
@@ -80,6 +81,8 @@ def pendencias(utilizador):
             problemas.append("Tem sessoes agendadas ou em curso.")
         if aluno.encomendas.exclude(estado__in=[Encomenda.Estado.ENTREGUE, Encomenda.Estado.CANCELADA]).exists():
             problemas.append("Tem encomendas por concluir.")
+        if creditos.saldo(aluno) > 0:
+            problemas.append("Tem credito por utilizar (sera perdido se apagar a conta; use-o primeiro).")
         if Pagamento.objects.filter(sessao__aluno=aluno, estado=Pagamento.EstadoPagamento.APROVADO,
                                     sessao__estado__in=Sessao.ESTADOS_REALIZADOS).exists():
             problemas.append("Tem pagamentos de sessoes realizadas por libertar.")

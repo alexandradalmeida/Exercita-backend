@@ -61,7 +61,7 @@ def aplicar():
     # --- sessoes e pagamentos ---
     anotar(views_sessoes.IniciarPagamentoView, "post", request=_corpo(
         "IniciarPagamentoPedido", sessao_id=serializers.IntegerField(required=False),
-        encomenda_id=serializers.IntegerField(required=False)), responses=s.PagamentoSerializer, tags=["pagamentos"])
+        encomenda_id=serializers.IntegerField(required=False), usar_credito=serializers.BooleanField(required=False)), responses=s.PagamentoSerializer, tags=["pagamentos"])
     anotar(views_sessoes.LibertarPagamentoView, "post", request=None, responses=s.PagamentoSerializer, tags=["pagamentos"])
     anotar(views_sessoes.PagamentoWebhookView, "post", request=_corpo(
         "WebhookPedido", referencia=serializers.CharField(),
