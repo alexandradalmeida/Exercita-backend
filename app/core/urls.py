@@ -5,6 +5,7 @@ from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, Not
 from .views_ginasios import GinasioViewSet
 from .views_admin import UtilizadorAdminViewSet
 from .views_configuracao import ConfiguracaoView
+from .views_relatorios import RelatorioFinanceiroView, RelatorioPlataformaView
 from .views_faturacao import DocumentoFinanceiroViewSet
 from .views_progresso import HistoricoTreinoViewSet, MetricaFisicaViewSet, ResumoProgressoView, WearableIngestaoView
 from .views_parcerias import (
@@ -78,6 +79,8 @@ urlpatterns = [
     path("progress/summary/", ResumoProgressoView.as_view(), name="progresso_resumo"),
     path("progress/wearables/ingest/", WearableIngestaoView.as_view(), name="wearables_ingestao"),
     path("admin/config/", ConfiguracaoView.as_view(), name="admin_config"),
+    path("admin/reports/platform/", RelatorioPlataformaView.as_view(), name="relatorio_plataforma"),
+    path("admin/reports/financial/", RelatorioFinanceiroView.as_view(), name="relatorio_financeiro"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),
