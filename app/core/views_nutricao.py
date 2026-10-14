@@ -73,6 +73,8 @@ class RegistoRefeicaoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAluno]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # geracao do schema OpenAPI
+            return RegistoRefeicao.objects.none()
         qs = RegistoRefeicao.objects.filter(aluno=self.request.user.perfil_aluno).order_by("-data", "-id")
         params = self.request.query_params
         try:

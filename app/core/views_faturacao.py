@@ -11,6 +11,8 @@ class DocumentoFinanceiroViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixi
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DocumentoFinanceiro.objects.none()
         qs = DocumentoFinanceiro.objects.select_related("pagamento")
         if not self.request.user.is_staff:
             qs = qs.filter(cliente=self.request.user)

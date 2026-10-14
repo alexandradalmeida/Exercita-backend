@@ -32,6 +32,8 @@ class MetricaFisicaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAluno]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return MetricaFisica.objects.none()
         qs = MetricaFisica.objects.filter(aluno=self.request.user.perfil_aluno)
         return _filtrar_por_datas(qs, self.request.query_params)
 
@@ -45,6 +47,8 @@ class HistoricoTreinoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAluno]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return HistoricoTreino.objects.none()
         qs = HistoricoTreino.objects.filter(aluno=self.request.user.perfil_aluno)
         if tipo := self.request.query_params.get("tipo"):
             qs = qs.filter(tipo__iexact=tipo)

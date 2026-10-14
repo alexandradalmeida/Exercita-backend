@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
+    'drf_spectacular',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -148,6 +149,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 from datetime import timedelta
@@ -159,3 +161,31 @@ SIMPLE_JWT = {
 }
 if TEST_RUN:
     PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Exercita API",
+    "DESCRIPTION": (
+        "Backend da Exercita: marketplace de Personal Trainers, sessoes, pagamentos Multicaixa Express, "
+        "avaliacoes, ginasios, nutricao, loja, progresso e administracao.\n\n"
+        "Autenticacao: `POST /api/v1/auth/login/` devolve `session_token` (usar como `Authorization: Bearer <token>`) "
+        "e `refresh_token`. Erros seguem o formato `{\"erro\": true, \"codigo\": N, \"detalhes\": ...}`."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {
+    "TipoUtilizadorEnum": "core.models.Utilizador.TipoUtilizador",
+    "TipoReservaGinasioEnum": "core.models.ReservaGinasio.Tipo",
+    "TipoDocumentoEnum": "core.models.DocumentoFinanceiro.Tipo",
+    "EstadoSessaoEnum": "core.models.Sessao.EstadoSessao",
+    "EstadoPagamentoEnum": "core.models.Pagamento.EstadoPagamento",
+    "EstadoEncomendaEnum": "core.models.Encomenda.Estado",
+    "EstadoReservaGinasioEnum": "core.models.ReservaGinasio.Estado",
+    "EstadoParceriaEnum": "core.models.ParceriaPT.Estado",
+    "EstadoRemuneracaoEnum": "core.models.RemuneracaoParceria.Estado",
+    "EstadoVerificacaoPTEnum": "core.models.PersonalTrainer.EstadoVerificacao",
+    "EstadoVerificacaoNutricionistaEnum": "core.models.Nutricionista.EstadoVerificacao",
+    "FonteMedicaoEnum": "core.models.MetricaFisica.Fonte",
+}
