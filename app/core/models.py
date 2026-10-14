@@ -104,6 +104,9 @@ class Ginasio(models.Model):
     estado_parceria = models.CharField(max_length=20, choices=EstadoParceria.choices, default=EstadoParceria.PENDENTE)
     personal_trainers = models.ManyToManyField(PersonalTrainer, blank=True, related_name="ginasios")
 
+    class Meta:
+        indexes = [models.Index(fields=["latitude", "longitude"], name="ginasio_coords_idx")]
+
     def __str__(self):
         return self.nome
 
@@ -156,6 +159,9 @@ class Sessao(models.Model):
     reclamacao = models.TextField(blank=True)  # BR-03: uma reclamacao bloqueia a libertacao automatica
     lembrete_enviado = models.BooleanField(default=False)
     notas = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["estado", "data_hora"], name="sessao_estado_data_idx")]
 
     def pode_transitar(self, novo_estado):
         return novo_estado in self.TRANSICOES[self.estado]
@@ -216,6 +222,9 @@ class Pagamento(models.Model):
     data_aprovacao = models.DateTimeField(null=True, blank=True)
     data_libertacao = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        indexes = [models.Index(fields=["estado"], name="pagamento_estado_idx")]
+
     def pode_transitar(self, novo_estado):
         return novo_estado in self.TRANSICOES[self.estado]
 
@@ -271,6 +280,9 @@ class RegistoRefeicao(models.Model):
     calorias = models.PositiveIntegerField(default=0)
     notas = models.TextField(blank=True)
 
+    class Meta:
+        indexes = [models.Index(fields=["aluno", "data"], name="registo_aluno_data_idx")]
+
     def __str__(self):
         return f"{self.aluno_id} {self.data} {self.descricao}"
 
@@ -296,6 +308,9 @@ class Notificacao(models.Model):
     mensagem = models.TextField()
     lida = models.BooleanField(default=False)
     data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["utilizador", "lida"], name="notificacao_user_lida_idx")]
 
     def __str__(self):
         return f"Notificacao {self.id} - {self.utilizador}"
@@ -435,6 +450,9 @@ class Encomenda(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_envio = models.DateTimeField(null=True, blank=True)
     data_entrega = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["estado"], name="encomenda_estado_idx")]
 
     def pode_transitar(self, novo_estado):
         return novo_estado in self.TRANSICOES[self.estado]
@@ -579,6 +597,7 @@ class MetricaFisica(models.Model):
     CAMPOS_MEDIDA = ("peso_kg", "altura_cm", "gordura_percentagem", "cintura_cm", "peito_cm", "anca_cm", "braco_cm")
 
     class Meta:
+        indexes = [models.Index(fields=["aluno", "data"], name="metrica_aluno_data_idx")]
         ordering = ["-data", "-id"]
         constraints = [models.UniqueConstraint(
             fields=["aluno", "fonte", "origem_externa_id"], condition=~models.Q(origem_externa_id=""),
@@ -599,6 +618,7 @@ class HistoricoTreino(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        indexes = [models.Index(fields=["aluno", "data"], name="treino_aluno_data_idx")]
         ordering = ["-data", "-id"]
         constraints = [models.UniqueConstraint(
             fields=["aluno", "fonte", "origem_externa_id"], condition=~models.Q(origem_externa_id=""),
