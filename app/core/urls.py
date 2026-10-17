@@ -6,6 +6,7 @@ from .views_ginasios import GinasioViewSet
 from .views_admin import UtilizadorAdminViewSet
 from .views_rgpd import ApagarContaView, ExportarDadosView
 from .views_configuracao import ConfiguracaoView, IntegracoesView
+from .views_consentimentos import ConsentimentoSaudeView
 from .views_creditos import CreditosView
 from .views_relatorios import RelatorioFinanceiroView, RelatorioPlataformaView
 from .views_faturacao import DocumentoFinanceiroViewSet
@@ -87,6 +88,7 @@ urlpatterns = [
     path("admin/reports/platform/", RelatorioPlataformaView.as_view(), name="relatorio_plataforma"),
     path("admin/reports/financial/", RelatorioFinanceiroView.as_view(), name="relatorio_financeiro"),
     path("credits/", CreditosView.as_view(), name="creditos"),
+    path("consents/health/", ConsentimentoSaudeView.as_view(), name="consentimento_saude"),
     path("favorites/", FavoritosView.as_view(), name="favoritos"),
     path("favorites/<int:pk>/", FavoritoDetalheView.as_view(), name="favorito_detalhe"),
     path("sessions/", SessaoListCreateView.as_view(), name="sessoes"),

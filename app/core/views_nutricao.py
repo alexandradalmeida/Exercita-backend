@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Nutricionista, PlanoNutricional, RegistoRefeicao
-from .permissions import IsAluno, IsNutricionistaVerificado
+from .services.consentimentos import utilizadores_com_consentimento
+from .permissions import IsAluno, IsNutricionistaVerificado, TemConsentimentoSaude
 from .serializers import NutricionistaSerializer, PlanoNutricionalSerializer, RegistoRefeicaoSerializer
 
 
@@ -58,7 +59,8 @@ class PlanoNutricionalViewSet(viewsets.ModelViewSet):
         qs = PlanoNutricional.objects.prefetch_related("refeicoes").order_by("-data_criacao", "-id")
         nutri = self._nutricionista()
         if nutri is not None:
-            return qs.filter(nutricionista=nutri)
+            # o nutricionista so trabalha com dados de saude de alunos que deram consentimento (e nao o retiraram)
+            return qs.filter(nutricionista=nutri, aluno__utilizador__in=utilizadores_com_consentimento())
         if hasattr(self.request.user, "perfil_aluno"):
             return qs.filter(aluno=self.request.user.perfil_aluno)
         return qs.none()
@@ -70,7 +72,7 @@ class PlanoNutricionalViewSet(viewsets.ModelViewSet):
 class RegistoRefeicaoViewSet(viewsets.ModelViewSet):
     """/api/v1/nutrition/logs/ - registo diario de refeicoes do aluno. Filtros: ?data=, ?de=, ?ate= (AAAA-MM-DD)."""
     serializer_class = RegistoRefeicaoSerializer
-    permission_classes = [IsAluno]
+    permission_classes = [TemConsentimentoSaude]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):  # geracao do schema OpenAPI

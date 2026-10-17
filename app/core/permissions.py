@@ -33,3 +33,13 @@ class IsNutricionistaVerificado(BasePermission):
         from .models import Nutricionista
         perfil = getattr(request.user, "perfil_nutricionista", None) if request.user.is_authenticated else None
         return perfil is not None and perfil.estado_verificacao == Nutricionista.EstadoVerificacao.VERIFICADO
+
+
+class TemConsentimentoSaude(IsAluno):
+    """Aluno com consentimento explicito, em vigor, para o tratamento de dados de saude (RGPD art. 9)."""
+    message = "E necessario o seu consentimento explicito para tratar dados de saude (POST /api/v1/consents/health/)."
+    code = "consentimento_saude_necessario"
+
+    def has_permission(self, request, view):
+        from .services.consentimentos import tem_consentimento
+        return super().has_permission(request, view) and tem_consentimento(request.user)

@@ -30,6 +30,10 @@ def exportar_dados(utilizador):
             "telefone": utilizador.telefone, "tipo": utilizador.tipo, "data_criacao": utilizador.data_criacao,
             "suspenso": utilizador.suspenso,
         },
+        "consentimentos": [
+            {"tipo": c.tipo, "versao_termos": c.versao_termos, "data_concessao": c.data_concessao,
+             "data_revogacao": c.data_revogacao}
+            for c in utilizador.consentimentos.all()],
         "notificacoes": NotificacaoSerializer(Notificacao.objects.filter(utilizador=utilizador), many=True).data,
         "avaliacoes_feitas": AvaliacaoSerializer(utilizador.avaliacoes_feitas.all(), many=True).data,
         "avaliacoes_recebidas": AvaliacaoSerializer(utilizador.avaliacoes_recebidas.all(), many=True).data,
@@ -67,6 +71,16 @@ def exportar_dados(utilizador):
             "especialidade": nutri.especialidade, "biografia": nutri.biografia,
         }
     return dados
+
+
+def apagar_dados_de_saude(aluno):
+    """Apaga medicoes, treinos, registos de refeicoes e planos nutricionais. Devolve quantos registos apagou."""
+    total = 0
+    for queryset in (MetricaFisica.objects.filter(aluno=aluno), HistoricoTreino.objects.filter(aluno=aluno),
+                     RegistoRefeicao.objects.filter(aluno=aluno), aluno.planos_nutricionais.all()):
+        total += queryset.count()
+        queryset.delete()
+    return total
 
 
 def pendencias(utilizador):
@@ -108,13 +122,10 @@ def apagar_conta(utilizador):
     aluno = _perfil_aluno(utilizador)
     if aluno is not None:
         # dados pessoais e de saude: apagados
-        MetricaFisica.objects.filter(aluno=aluno).delete()
-        HistoricoTreino.objects.filter(aluno=aluno).delete()
-        RegistoRefeicao.objects.filter(aluno=aluno).delete()
+        apagar_dados_de_saude(aluno)
         Favorito.objects.filter(aluno=aluno).delete()
         ReservaGinasio.objects.filter(aluno=aluno).delete()
         Carrinho.objects.filter(aluno=aluno).delete()
-        aluno.planos_nutricionais.all().delete()
         aluno.data_nascimento, aluno.objetivo = None, ""
         aluno.save(update_fields=["data_nascimento", "objetivo"])
     pt = getattr(utilizador, "perfil_personal_trainer", None)
@@ -131,6 +142,7 @@ def apagar_conta(utilizador):
         nutri.cedula_profissional, nutri.especialidade, nutri.biografia = "", "", ""
         nutri.save()
     Notificacao.objects.filter(utilizador=utilizador).delete()
+    utilizador.consentimentos.all().delete()
     # comentarios de avaliacoes feitas/recebidas podem conter dados pessoais
     Avaliacao.objects.filter(autor=utilizador).update(comentario="")
 

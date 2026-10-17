@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from .models import HistoricoTreino, MetricaFisica, Sessao
 from .test_marketplace import criar_pt
-from .test_sessoes import criar_aluno
+from .test_sessoes import criar_aluno_com_consentimento as criar_aluno
 
 METRICAS = "/api/v1/progress/metrics/"
 TREINOS = "/api/v1/progress/workouts/"

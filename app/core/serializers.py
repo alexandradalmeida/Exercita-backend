@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate
+from .services.consentimentos import tem_consentimento
 from .services.embeddings import atualizar_embedding
 from datetime import time
 from decimal import Decimal
@@ -368,6 +369,10 @@ class PlanoNutricionalSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if self.instance is None and "aluno" not in data:
             raise serializers.ValidationError({"aluno_id": "Indique o aluno do plano."})
+        aluno = data.get("aluno") or (self.instance.aluno if self.instance else None)
+        if aluno is not None and not tem_consentimento(aluno.utilizador):
+            raise serializers.ValidationError(
+                {"aluno_id": "O aluno ainda nao deu consentimento para o tratamento de dados de saude."})
         if self.instance is not None and "aluno" in data and data["aluno"] != self.instance.aluno:
             raise serializers.ValidationError({"aluno_id": "Nao e possivel mudar o aluno de um plano."})
         return data

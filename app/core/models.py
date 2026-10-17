@@ -679,3 +679,22 @@ class UsoCredito(models.Model):
     pagamento = models.ForeignKey(Pagamento, on_delete=models.CASCADE, related_name="usos_credito")
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     restituido = models.BooleanField(default=False)
+
+
+class ConsentimentoDados(models.Model):
+    """Registo de consentimento explicito (RGPD art. 7 e 9). Um registo por concessao: revogar nao apaga
+    o historico, apenas preenche `data_revogacao`. O consentimento so e valido para a versao dos termos aceite."""
+
+    class Tipo(models.TextChoices):
+        SAUDE = "saude", "Dados de saúde"
+
+    utilizador = models.ForeignKey(Utilizador, on_delete=models.CASCADE, related_name="consentimentos")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    versao_termos = models.CharField(max_length=20)
+    texto_hash = models.CharField(max_length=64)  # SHA-256 do texto apresentado: prova do que foi aceite
+    data_concessao = models.DateTimeField(auto_now_add=True)
+    data_revogacao = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-data_concessao", "-id"]
+        indexes = [models.Index(fields=["utilizador", "tipo"], name="consentimento_user_tipo_idx")]

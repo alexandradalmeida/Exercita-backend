@@ -40,10 +40,11 @@ dinheiro real). Em staging usar `ALLOW_MOCK_INTEGRATIONS=True`.
 | Cancelamento tardio | o PT recebe alguma compensação? (hoje: nada; o valor fica retido e o aluno recebe crédito de 90 dias) |
 | Crédito expirado | tratamento contabilístico/fiscal do valor retido que expira |
 | Pacote e plano mensal | regras de preço, número de sessões e renovação (hoje: preço × quantidade, uma sessão) |
-| Consentimento e retenção de dados | termos, consentimento explícito para dados de saúde, prazos de retenção |
+| Consentimento para dados de saúde | **implementado**; falta o jurídico aprovar o texto (`HEALTH_CONSENT_TEXT`) e fixar a `HEALTH_CONSENT_VERSION` |
+| Retenção de dados | prazos e política de expiração/anonimização automática (não implementada) |
+| Consentimento para marketing | não existe; só o de saúde |
 | Fornecedores e "planos" | modelo e regras de pagamento (o cronograma menciona-os na gestão de parceiros) |
 | Aulas de ginásio | lotação por aula; confirmação pelo ginásio |
-| Nutricionista | consentimento do aluno antes de lhe atribuírem um plano |
 
 ## D. Antes do primeiro utilizador real
 

@@ -126,6 +126,16 @@ def aplicar():
     anotar(views_creditos.CreditosView, "get", responses=OBJETO, tags=["creditos"],
            description="Saldo utilizavel, proxima expiracao e historico de creditos do aluno.")
 
+    # --- consentimento ---
+    from . import views_consentimentos as vc
+    anotar(vc.ConsentimentoSaudeView, "get", responses=OBJETO, tags=["rgpd"],
+           description="Texto e versao dos termos em vigor, estado atual do consentimento e historico.")
+    anotar(vc.ConsentimentoSaudeView, "post", request=vc.ConceberConsentimentoSerializer,
+           responses=vc.ConsentimentoSerializer, tags=["rgpd"],
+           description="Consentimento explicito para dados de saude: exige `aceito: true` e a versao exata dos termos.")
+    anotar(vc.ConsentimentoSaudeView, "delete", request=vc.RevogarConsentimentoSerializer, responses=OBJETO,
+           tags=["rgpd"], description="Retira o consentimento; com `apagar_dados: true` apaga os dados de saude.")
+
     # --- RGPD ---
     from . import views_rgpd
     anotar(views_rgpd.ExportarDadosView, "get", responses={(200, "application/json"): OBJETO}, tags=["rgpd"],

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import HistoricoTreino, MetricaFisica
-from .permissions import IsAluno
+from .permissions import TemConsentimentoSaude
 from .serializers_progresso import (
     HistoricoTreinoSerializer, MetricaFisicaSerializer, WearableIngestaoSerializer,
 )
@@ -29,7 +29,7 @@ def _filtrar_por_datas(qs, params):
 class MetricaFisicaViewSet(viewsets.ModelViewSet):
     """/api/v1/progress/metrics/ - medicoes corporais do aluno (UC-14). Filtros: ?de= ?ate="""
     serializer_class = MetricaFisicaSerializer
-    permission_classes = [IsAluno]
+    permission_classes = [TemConsentimentoSaude]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -44,7 +44,7 @@ class MetricaFisicaViewSet(viewsets.ModelViewSet):
 class HistoricoTreinoViewSet(viewsets.ModelViewSet):
     """/api/v1/progress/workouts/ - historico de treinos do aluno. Filtros: ?de= ?ate= ?tipo="""
     serializer_class = HistoricoTreinoSerializer
-    permission_classes = [IsAluno]
+    permission_classes = [TemConsentimentoSaude]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -60,7 +60,7 @@ class HistoricoTreinoViewSet(viewsets.ModelViewSet):
 
 class ResumoProgressoView(APIView):
     """GET /api/v1/progress/summary/ - ultima medicao, variacao de peso desde a primeira e treinos dos ultimos 30 dias."""
-    permission_classes = [IsAluno]
+    permission_classes = [TemConsentimentoSaude]
 
     def get(self, request):
         aluno = request.user.perfil_aluno
@@ -90,7 +90,7 @@ class WearableIngestaoView(APIView):
     TODO: ainda nao ha integracao com nenhum fabricante (Apple Health, Google Fit, ...). Este endpoint define o
     contrato de ingestao: a app (ou um conector futuro) envia medicoes/treinos com `origem_externa_id` estavel, e
     repetir o envio nao duplica registos. A autenticacao do dispositivo/fabricante fica por definir."""
-    permission_classes = [IsAluno]
+    permission_classes = [TemConsentimentoSaude]
 
     @transaction.atomic
     def post(self, request):

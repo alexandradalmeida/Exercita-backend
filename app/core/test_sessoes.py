@@ -16,6 +16,19 @@ def criar_aluno(username="aluno_s"):
     return UtilizadorAluno.objects.create(utilizador=u)
 
 
+def dar_consentimento(utilizador):
+    """Consentimento de saude em vigor (para testes de funcionalidades que tratam dados de saude)."""
+    from .services import consentimentos
+    consentimentos.conceder(utilizador, consentimentos.versao_atual(), True)
+    return utilizador
+
+
+def criar_aluno_com_consentimento(username="aluno_c"):
+    aluno = criar_aluno(username)
+    dar_consentimento(aluno.utilizador)
+    return aluno
+
+
 class MaquinaEstadosSessaoTestCase(TestCase):
     def setUp(self):
         self.sessao = Sessao.objects.create(

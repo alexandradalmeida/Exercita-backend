@@ -72,8 +72,15 @@ RGPD:
   (medições, treinos, refeições, planos, favoritos, reservas, notificações). Faturas, recibos e pagamentos são
   **conservados** por obrigação legal, mas deixam de identificar a pessoa. Bloqueado enquanto houver sessões,
   encomendas ou pagamentos por libertar.
-- Dados de saúde (UC-11/UC-14) são dados sensíveis: o consentimento explícito e a base legal devem ser formalizados nos
-  termos da app (o backend ainda não regista consentimento).
+- **Consentimento explícito para dados de saúde** (`/api/v1/consents/health/`): sem consentimento em vigor, os
+  endpoints de medições, treinos, registo de refeições, resumo de progresso e wearables respondem 403, e um
+  nutricionista não pode criar planos para o aluno nem ver os existentes. O aluno vê o texto e a versão (GET), consente
+  com `{"versao": "1.0", "aceito": true}` (sem aceitação implícita; versão errada = 409) e retira com DELETE, opcionalmente
+  `{"apagar_dados": true}` para apagar os dados de saúde já recolhidos. Cada consentimento guarda data, versão e o
+  SHA-256 do texto aceite; revogar preenche a data de revogação e conserva o histórico. Mudar `HEALTH_CONSENT_VERSION`
+  obriga todos a consentir de novo. **O texto atual é um rascunho técnico: tem de ser validado pelo jurídico/DPO**
+  (substituível com `HEALTH_CONSENT_TEXT`, sem alterar código). O aluno continua a poder ver os planos que já tem
+  (direito de acesso) depois de revogar.
 - Retenção: não há política automática de expiração de dados; definir prazos com o DPO.
 
 ## 6. Pendente de dependências externas (Fase 9)

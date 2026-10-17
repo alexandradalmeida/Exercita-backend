@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 
 from .models import PlanoNutricional, Refeicao, RegistoRefeicao
 from .test_nutricionista import criar_nutricionista
-from .test_sessoes import criar_aluno
+from .test_sessoes import criar_aluno_com_consentimento as criar_aluno
 
 PLANOS = "/api/v1/nutrition/plans/"
 REFEICOES = [
