@@ -40,7 +40,8 @@ class DefinicoesDeProducaoTestCase(TestCase):
             self.assertIn("DJANGO_SECRET_KEY", r.stderr)
 
     def test_configuracao_correta_so_deixa_o_aviso_opcional_do_hsts_preload(self):
-        r = verificar_producao(ALLOWED_HOSTS="api.exercita.ao", DJANGO_SECRET_KEY=CHAVE_FORTE)
+        r = verificar_producao(ALLOWED_HOSTS="api.exercita.ao", DJANGO_SECRET_KEY=CHAVE_FORTE,
+                               MULTICAIXA_BACKEND="real", MULTICAIXA_WEBHOOK_SECRET="segredo-de-producao")
         self.assertEqual(r.returncode, 0, r.stderr)
         avisos = [l for l in (r.stdout + r.stderr).splitlines() if l.startswith("?:")]
         self.assertEqual(len(avisos), 1, avisos)

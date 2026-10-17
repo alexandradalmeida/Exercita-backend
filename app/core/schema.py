@@ -102,6 +102,8 @@ def aplicar():
     anotar(views_configuracao.ConfiguracaoView, "get", responses=views_configuracao.ConfiguracaoSerializer, tags=["admin"])
     anotar(views_configuracao.ConfiguracaoView, "patch", request=views_configuracao.ConfiguracaoSerializer,
            responses=views_configuracao.ConfiguracaoSerializer, tags=["admin"])
+    anotar(views_configuracao.IntegracoesView, "get", responses=OBJETO, tags=["admin"],
+           description="Estado de cada integracao externa e bloqueios para o lancamento.")
     anotar(views_relatorios.RelatorioPlataformaView, "get", responses=OBJETO, parameters=DATA, tags=["admin"])
     anotar(views_relatorios.RelatorioFinanceiroView, "get", responses={(200, "text/csv"): OpenApiTypes.STR}, tags=["admin"],
            parameters=DATA + [OpenApiParameter("tipo", str, enum=["pagamentos", "parcerias"])])

@@ -45,3 +45,14 @@ class ConfiguracaoView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(atualizado_por=request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class IntegracoesView(APIView):
+    """GET /api/v1/admin/integrations/ - estado de cada integracao externa e o que falta para o lancamento."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from .services.integracoes import estado_das_integracoes, pronto_para_lancamento
+        estado = estado_das_integracoes()
+        bloqueios = pronto_para_lancamento(estado)
+        return Response({"pronto_para_lancamento": not bloqueios, "bloqueios": bloqueios, "integracoes": estado})

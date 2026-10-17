@@ -16,6 +16,9 @@ class GatewayErro(Exception):
     pass
 
 
+NAO_CONFIGURADO = "Integracao com o Multicaixa Express ainda nao esta ativa neste ambiente."  # TODO: implementar
+
+
 class MulticaixaGateway:
     def iniciar_transacao(self, pagamento):
         """Inicia a cobranca e devolve a referencia do gateway (str)."""
@@ -32,13 +35,13 @@ class MulticaixaGateway:
 
 class MulticaixaReal(MulticaixaGateway):
     def iniciar_transacao(self, pagamento):
-        raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
+        raise GatewayErro(NAO_CONFIGURADO)
 
     def transferir_para_pt(self, pagamento):
-        raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
+        raise GatewayErro(NAO_CONFIGURADO)
 
     def reembolsar(self, pagamento):
-        raise NotImplementedError("TODO: integrar com a API oficial do Multicaixa Express.")
+        raise GatewayErro(NAO_CONFIGURADO)
 
 
 class MulticaixaMock(MulticaixaGateway):

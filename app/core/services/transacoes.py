@@ -28,7 +28,12 @@ def _emitir_referencia(pagamento, usar_credito):
         aprovar_pagamento(pagamento)
     else:
         # o gateway deve cobrar `pagamento.valor_a_pagar` (valor menos o credito aplicado)
-        pagamento.referencia_multicaixa = obter_gateway().iniciar_transacao(pagamento)
+        try:
+            pagamento.referencia_multicaixa = obter_gateway().iniciar_transacao(pagamento)
+        except GatewayErro as erro:
+            # o credito eventualmente aplicado volta ao aluno: nada fica a meio
+            creditos.restituir_creditos(pagamento)
+            raise PagamentoErro(f"Nao foi possivel iniciar o pagamento: {erro}", 502)
         pagamento.save(update_fields=["referencia_multicaixa"])
     return pagamento
 

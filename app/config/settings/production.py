@@ -54,3 +54,15 @@ LOGGING = {
 # --- ficheiros estaticos (admin Django) servidos pela propria aplicacao ---
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
+
+# --- integracoes externas: nada de mocks em producao sem o assumir de forma explicita ---
+# Um gateway "mock" marcaria estornos e repasses como feitos sem mexer em dinheiro real.
+_MULTICAIXA = config("MULTICAIXA_BACKEND", default="mock")
+if _MULTICAIXA not in ("mock", "real"):
+    raise ImproperlyConfigured(f"MULTICAIXA_BACKEND invalido: '{_MULTICAIXA}' (use 'real' ou 'mock').")
+if _MULTICAIXA == "mock" and not config("ALLOW_MOCK_INTEGRATIONS", default=False, cast=bool):
+    raise ImproperlyConfigured(
+        "MULTICAIXA_BACKEND=mock nao e permitido em producao. Use MULTICAIXA_BACKEND=real, ou defina "
+        "ALLOW_MOCK_INTEGRATIONS=True apenas em ambientes de teste/staging.")
+if _MULTICAIXA == "real" and not config("MULTICAIXA_WEBHOOK_SECRET", default=""):
+    raise ImproperlyConfigured("MULTICAIXA_WEBHOOK_SECRET e obrigatorio com MULTICAIXA_BACKEND=real.")

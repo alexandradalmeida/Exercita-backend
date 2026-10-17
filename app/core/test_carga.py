@@ -51,6 +51,10 @@ class CargaConcorrenteTestCase(TransactionTestCase):
         Notificacao.objects.bulk_create([Notificacao(utilizador=u, mensagem="ola") for u in alunos_u for _ in range(20)])
         self.alunos = alunos_u
         self.pt_ids = [pt.id for pt in pts]
+        # Os testes anteriores deixam linhas mortas (transacoes revertidas) e estatisticas velhas; em producao
+        # o autovacuum trata disso. Aqui faz-se a manutencao a mao para medir o desempenho da aplicacao.
+        with connection.cursor() as cursor:
+            cursor.execute("VACUUM ANALYZE")
 
     def pedido(self, i):
         rnd = random.Random(i)

@@ -4,7 +4,11 @@ TODO: a integracao com o Google Maps (ou equivalente) exige chave de API e contr
 assume URLs ou formatos reais: `GeocodingGoogle` fica por implementar e o backend por omissao
 (`none`) nao geocodifica, obrigando a indicar latitude/longitude. `GeocodingMock` serve para testes.
 """
+import logging
+
 from decouple import config
+
+logger = logging.getLogger(__name__)
 
 
 class GeocodingGateway:
@@ -20,7 +24,8 @@ class GeocodingNenhum(GeocodingGateway):
 
 class GeocodingGoogle(GeocodingGateway):
     def geocodificar(self, morada):
-        raise NotImplementedError("TODO: integrar com a API de geocodificacao (requer chave).")
+        logger.warning("geocodificacao Google ainda nao implementada; indique latitude/longitude manualmente")
+        return None  # TODO: integrar com a API de geocodificacao (requer chave)
 
 
 class GeocodingMock(GeocodingGateway):

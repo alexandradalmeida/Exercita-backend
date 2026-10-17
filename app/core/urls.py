@@ -5,7 +5,7 @@ from .views_notificacoes import NotificacaoDetalheView, NotificacaoListView, Not
 from .views_ginasios import GinasioViewSet
 from .views_admin import UtilizadorAdminViewSet
 from .views_rgpd import ApagarContaView, ExportarDadosView
-from .views_configuracao import ConfiguracaoView
+from .views_configuracao import ConfiguracaoView, IntegracoesView
 from .views_creditos import CreditosView
 from .views_relatorios import RelatorioFinanceiroView, RelatorioPlataformaView
 from .views_faturacao import DocumentoFinanceiroViewSet
@@ -83,6 +83,7 @@ urlpatterns = [
     path("progress/summary/", ResumoProgressoView.as_view(), name="progresso_resumo"),
     path("progress/wearables/ingest/", WearableIngestaoView.as_view(), name="wearables_ingestao"),
     path("admin/config/", ConfiguracaoView.as_view(), name="admin_config"),
+    path("admin/integrations/", IntegracoesView.as_view(), name="admin_integracoes"),
     path("admin/reports/platform/", RelatorioPlataformaView.as_view(), name="relatorio_plataforma"),
     path("admin/reports/financial/", RelatorioFinanceiroView.as_view(), name="relatorio_financeiro"),
     path("credits/", CreditosView.as_view(), name="creditos"),
